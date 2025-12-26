@@ -1,15 +1,198 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <meta charset="UTF-8" />
+    <title>AUTOFILL</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- FONT -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="/css/autofill.css">
+
+    <!-- Feather -->
+    <script src="https://unpkg.com/feather-icons"></script>
 </head>
+
 <body>
-    <label for="">Url:</label><br>
-    <form action="/scrape" method="GET">
-        <input type="text" name="url" style="width:300px;" >
-        <button id="parse">parse</button>
-    </form>
+    <div class="container">
+
+        <!-- ========== TOP HALF ========= -->
+        <div class="top-half">
+
+            <!-- HEADER -->
+            <header class="header">
+                <nav class="nav">
+                    <a href="#tutorial">Tutorial</a>
+                    <a href="#pricelist">Pricelist</a>
+                    <div class="dropdown">Socials</div>
+                </nav>
+
+                <div class="logo">
+                    <a href="/">
+                        <img src="/images/mark-white.png">
+                        <img src="/images/logo-white.png">
+                    </a>
+                </div>
+
+                <div class="account"></div>
+            </header>
+
+            <!-- HERO -->
+            <main class="hero">
+                <h1>Make your life easier with <strong>Autofill</strong></h1>
+                <p class="tagline">Finish your questionnaire in just one click</p>
+
+                <div class="pill-input">
+                    <input id="formurl" type="text" class="form-input"
+                        placeholder="Ketik link Google Form Anda disini" />
+                    <button onclick="start()">Mulai</button>
+                </div>
+
+                <p id="form-status"></p>
+
+                <div class="arrow-down">
+                    <a href="#features"><i data-feather="circle"></i></a>
+                </div>
+            </main>
+        </div>
+
+        <!-- ========== BOTTOM HALF ========= -->
+        <div class="bottom-half">
+
+            <!-- FEATURES -->
+            <section class="features" id="features">
+                <div class="feature-box">
+                    <img src="/images/package-img/Autofill-cepat-icon.svg">
+                    <h2 class="tagline">Cepat</h2>
+                    <p>Cocok untuk mahasiswa yang dikejar deadline.</p>
+                </div>
+
+                <div class="feature-box">
+                    <img src="/images/package-img/Autofill-aman-icon.svg">
+                    <h2 class="tagline">Aman</h2>
+                    <p>Data klien aman dari penyalahgunaan.</p>
+                </div>
+
+                <div class="feature-box">
+                    <img src="/images/package-img/Autofill-fleksibel-icon.svg">
+                    <h2 class="tagline">Fleksibel</h2>
+                    <p>Menyesuaikan kebutuhan responden dan target.</p>
+                </div>
+            </section>
+
+            <!-- PRICING -->
+            <section class="trial" id="pricelist">
+                <div class="title">
+                    <h1>Gunakan Free Trial-mu sekarang
+                        <p>Dapatkan gratis 5 responden!</p>
+                    </h1>
+                </div>
+
+                <div class="packages">
+                    <div class="package">
+                        <div class="top">
+                            <p>Diskon 10% dengan kode referral</p>
+                            <h1>50–99<br><span class="thin">RESPONDEN</span></h1>
+                            <div>
+                                <h2><small class="currency">Rp</small> 500<small class="thinner">/responden</small></h2>
+                                <small>*Lebih hemat 20%</small>
+                            </div>
+                        </div>
+                        <div class="bottom">
+                            <button>PILIH PAKET</button>
+                        </div>
+                    </div>
+
+                    <div class="package active has-bestseller-badge">
+                        <div class="bestseller-badge"><b>BEST SELLER</b></div>
+                        <div class="top">
+                            <p>Diskon 10% dengan kode referral</p>
+                            <h1>100–299<br><span class="thin">RESPONDEN</span></h1>
+                            <div>
+                                <h2><small class="currency">Rp</small> 400<small class="thinner">/responden</small></h2>
+                                <small>*Lebih hemat 20%</small>
+                            </div>
+                        </div>
+                        <div class="bottom">
+                            <button>PILIH PAKET</button>
+                        </div>
+                    </div>
+
+                    <div class="package">
+                        <div class="top">
+                            <p>Diskon 15% dengan kode referral</p>
+                            <h1>300–700<br><span class="thin">RESPONDEN</span></h1>
+                            <div>
+                                <h2><small class="currency">Rp</small> 350<small class="thinner">/responden</small></h2>
+                                <small>*Lebih hemat 30%</small>
+                            </div>
+                        </div>
+                        <div class="bottom">
+                            <button>PILIH PAKET</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- FOOTER -->
+            <footer class="footer">
+                <div class="footer-logo">
+                    <img src="/images/mark-black.png">
+                </div>
+                <div class="footer-links">
+                    <a href="#pricelist">Pricelist</a>
+                    <a href="/">Home</a>
+                    <a href="#">FAQ</a>
+                </div>
+                <p>© 2025 AUTOFILL ALL RIGHTS RESERVED</p>
+            </footer>
+
+        </div>
+    </div>
+
+    <script>
+        feather.replace();
+
+        function start() {
+            const input = document.getElementById('formurl');
+            const status = document.getElementById('form-status');
+            const v = input.value.trim();
+
+            status.innerText = '';
+
+            if (!v) {
+                status.innerText = 'Masukkan link Google Form';
+                return;
+            }
+
+            if (!v.includes('docs.google.com')) {
+                status.innerText = 'Link tidak valid';
+                return;
+            }
+
+            // Tambahkan animasi fade out sebelum redirect
+            const container = document.querySelector('.container');
+            container.style.animation = 'fadeOut 0.8s ease-out forwards';
+            
+            // Redirect setelah animasi selesai
+            setTimeout(() => {
+                window.location.href = '/scrape?url=' + encodeURIComponent(v);
+            }, 800);
+        }
+
+        // Tambahkan event listener untuk Enter key
+        document.getElementById('formurl').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                start();
+            }
+        });
+    </script>
+
 </body>
+
 </html>

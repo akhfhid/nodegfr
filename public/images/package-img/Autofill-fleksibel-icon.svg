@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 500 500">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #d3b048;
+      }
+
+      .cls-2, .cls-3 {
+        fill: #1a223d;
+      }
+
+      .cls-2 {
+        fill-rule: evenodd;
+      }
+    </style>
+  </defs>
+  <rect id="Rounded_Rectangle_1" data-name="Rounded Rectangle 1" class="cls-1" x="146" y="152" width="208" height="196" rx="20" ry="20"/>
+  <path class="cls-2" d="M176.367,268.756v-4.168H323.633v4.168H176.367Z"/>
+  <path id="Shape_3_copy" data-name="Shape 3 copy" class="cls-2" d="M176.367,252.059v-4.168H323.633v4.168H176.367Z"/>
+  <path id="Shape_3_copy_2" data-name="Shape 3 copy 2" class="cls-2" d="M176.367,235.431v-4.168H323.633v4.168H176.367Z"/>
+  <path class="cls-2" d="M243.748,260.42a6.252,6.252,0,1,1-6.252,6.252A6.252,6.252,0,0,1,243.748,260.42Z"/>
+  <circle id="Ellipse_1_copy" data-name="Ellipse 1 copy" class="cls-3" cx="285.219" cy="249.969" r="6.25"/>
+  <path id="Ellipse_1_copy_2" data-name="Ellipse 1 copy 2" class="cls-2" d="M243.748,227.077a6.252,6.252,0,1,1-6.252,6.251A6.252,6.252,0,0,1,243.748,227.077Z"/>
+</svg>

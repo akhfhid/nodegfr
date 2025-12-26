@@ -21,7 +21,7 @@ questionEls.forEach((el, i) => {
     }
 
     let type = 'Unknown';
-    if (el.querySelector('.zwllIb')) type = 'Multiple Choice';
+    if (el.querySelector('.zwllIb')) type = ' Multiple Choice';
     else if (el.querySelector('.lLfZXe.fnxRtf.EzyPc')) type = 'Multiple Choice Grid';
     else if (el.querySelector('.V4d7Ke.wzWPxe.OIC90c')) type = 'Checkbox Grid';
     else if (el.querySelector('.ghIlv.s6sSOd')) type = 'Rating';

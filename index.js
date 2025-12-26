@@ -3,231 +3,168 @@ const http = require('http');
 const https = require('https');
 const puppeteer = require('puppeteer');
 const { Faker, id_ID } = require('@faker-js/faker');
+const path = require('path');
+
 const app = express();
 const PORT = 3000;
+
+console.log('PUBLIC DIR:', path.join(__dirname, 'public'));
+
 app.set('view engine', 'ejs');
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public'))); 
+
 const RESPOND_COUNT_HARD_LIMIT = 999;
-// !FIX dont do ts
 const HARD_CODED_NAMEFAKER = true;
+
 const faker = new Faker({
-    locale:[id_ID]
-})
-faker.locale = 'id_ID'
-// const formData = require("..json");
+    locale: [id_ID]
+});
+faker.locale = 'id_ID';
 
 app.get('/scrape', async (req, res) => {
     const url = req.query.url;
-    formData = await scrape(url)
-    // res.json(formData)
-    const data = {
-        url: url,
-        "questions": formData.questions
-    };
-    res.render('index', data)
+
+    const formData = await scrape(url);
+
+    if (!formData || !formData.questions) {
+        return res.render('index', {
+            url,
+            questions: [] // aman buat EJS
+        });
+    }
+
+    res.render('index', {
+        url,
+        questions: formData.questions
+    });
 });
 
+
 app.get('/', (req, res) => {
-    res.render('home')
-})
+    res.render('home', {
+        formurlfail: req.query.formurlfail ?? null
+    });
+});
+
 
 app.post('/save-probabilities', express.urlencoded({ extended: true }), (req, res) => {
     const formData = req.body;
-    const respondCount = req.body.respondCount || 1;
-    // const respondCount = 1;
+    let respondCount = parseInt(req.body.respondCount) || 1;
     if (respondCount > RESPOND_COUNT_HARD_LIMIT) { respondCount = RESPOND_COUNT_HARD_LIMIT; }
 
-    // Extract all unique question IDs from the form data
-    
     let baseUrl = formData.url;
     let data = parseData(formData);
-    let nameFakerEntry
-    let cityFakerEntry
-    let genderFakerEntry
-    let newData = []
-    let urlsToSend = []
-    let urlsToSendText
-    let unique = []
-    // separate between data and generated data
+    let nameFakerEntry, cityFakerEntry, genderFakerEntry, emailFakerEntry;
+    let newData = [];
+    let urlsToSend = [];
+
     for (const entry of data) {
-        if (formData['name-faker'] && entry.name == formData['name-faker'])  {
-            nameFakerEntry = entry
-        }
-        else if(formData['gender-faker'] && entry.name == formData['gender-faker'] ){
-            genderFakerEntry = entry
-        }
-        else if(formData['city-faker'] && entry.name == formData['city-faker'] ){
-            cityFakerEntry = entry
-        }
-        else {
-            newData.push(entry)
+        if (formData['name-faker'] && entry.name == formData['name-faker']) {
+            nameFakerEntry = entry;
+        } else if (formData['gender-faker'] && entry.name == formData['gender-faker']) {
+            genderFakerEntry = entry;
+        } else if (formData['city-faker'] && entry.name == formData['city-faker']) {
+            cityFakerEntry = entry;
+        } else if (formData['email-faker'] && entry.name == formData['email-faker']) {
+            emailFakerEntry = entry;
+        } else {
+            newData.push(entry);
         }
     }
-    // console.log(newData)
+
     for (let i = 0; i < respondCount; i++) {
-        let fakerGender = Math.random() < 0.3?'Laki-laki' : 'Perempuan'
-        let fakerName = faker.person.firstName(fakerGender=="Perempuan"?"female":"male")
-        let fakerCity = faker.location.city()
-        if(Math.random() < 0.7){
-            fakerName = fakerName.toLowerCase()
+        let fakerGender = Math.random() < 0.3 ? 'Laki-laki' : 'Perempuan';
+        let fakerName = faker.person.firstName(fakerGender == "Perempuan" ? "female" : "male");
+        let fakerCity = faker.location.city();
+        let fakerEmail = faker.internet.email().replace(/@.+$/, '@gmail.com');
+        if (Math.random() < 0.7) {
+            fakerName = fakerName.toLowerCase();
         }
         const formUrl = decodeToGoogleFormUrl(baseUrl, newData);
         const urlParams = new URLSearchParams();
         if (formData["name-faker"]) {
-            urlParams.append(nameFakerEntry.name, fakerName)
+            urlParams.append(nameFakerEntry.name, fakerName);
         }
         if (formData["gender-faker"]) {
-            urlParams.append(genderFakerEntry.name, fakerGender)
+            urlParams.append(genderFakerEntry.name, fakerGender);
         }
         if (formData["city-faker"]) {
-            urlParams.append(cityFakerEntry.name, fakerCity)
+            urlParams.append(cityFakerEntry.name, fakerCity);
+        }
+        if (formData["email-faker"]) {
+            urlParams.append(emailFakerEntry.name, fakerEmail);
         }
         const newForm = `${formUrl}&${urlParams.toString()}`;
-        urlsToSend.push(newForm)
-    }
-    
-    console.log(urlsToSend)
-    res.render('buffer',{urlsToSend})
-    return 
-    // let urlsuccess = 0;
-    // let urlLinkStatus = [];
-    // let promises = urlsToSend.map((u) => {
-    //     return new Promise((resolve) => {
-    //         setTimeout(function() {
-    //             https.get(u, (response) => {
-    //                 urlLinkStatus.push({u, s:response.statusCode})
-    //                 if (response.statusCode == 200) {
-    //                     urlsuccess++;
-    //                 }
-    //                 console.log(u, response.statusCode);
-    //                 resolve(); // Resolve the promise after the request is completed
-    //             });
-    //         }, 200);
-    //     });
-    // });
-
-    // Wait for all requests to finish
-    Promise.all(promises).then(() => {
-        res.send([urlsuccess, urlsToSend, urlLinkStatus, urlsToSend.length]);
-    });
-    return
-    if (formData['dont-repeat_name']) {
-        for (const entry of data) {
-            // console.log("entreee", entry)
-            if (entry.name == formData['dont-repeat_target']) {
-                target = entry
-            }
-            else {
-                newData.push(entry)
-            }
-        }
-        target.items.forEach((i, index) => {
-            unique.push(i.option)
-            const formUrl = decodeToGoogleFormUrl(baseUrl, newData);
-            const urlParams = new URLSearchParams();
-            urlParams.append(target.name,i.option)
-            const newForm = `${formUrl}&${urlParams.toString()}`;
-            urlsToSend.push(newForm)
-            urlsToSendText += '\n'+i.option
-            // https.get(newForm, (response) => {
-            //     console.log(formUrl + "\n")
-            // });
-        })
-        res.render('dontRepeat',{urlsToSend, unique})
-        // res.json(urlsToSend)
-        // res.send('✅ Successfully submitted to Google Form ' + decodeToGoogleFormUrl(baseUrl, data) + ' with unique ' +  urlsToSendText);
-        return
+        urlsToSend.push(newForm);
     }
 
-    // res.json(formUrl)
-    for (let i = 0; i < respondCount; i++) {
-        const formUrl = decodeToGoogleFormUrl(baseUrl, data);
-        // https.get(formUrl, (response) => {
-        //     console.log(formUrl + "\n")
-        // });
-    }
-    res.send('✅ Successfully submitted to Google Form ' + decodeToGoogleFormUrl(baseUrl, data) + ' with ' + respondCount + ' responses');
-    // res.send('Data received and processed');
-    return
+    res.render('buffer', { urlsToSend });
 });
 
 app.post('/execute-links', express.urlencoded({ extended: true }), (req, res) => {
     let urlsuccess = 0;
     let urlLinkStatus = [];
-    const urlsToSend = req.body.urls
+    let delay = 1000;
+    const urlsToSend = req.body.urls;
     let promises = urlsToSend.map((u) => {
         return new Promise((resolve) => {
             setTimeout(function() {
                 https.get(u, (response) => {
-                    urlLinkStatus.push({u, s:response.statusCode})
+                    urlLinkStatus.push({ u, s: response.statusCode });
                     if (response.statusCode == 200) {
                         urlsuccess++;
                     }
                     console.log(u, response.statusCode);
-                    resolve(); // Resolve the promise after the request is completed
+                    resolve();
                 });
-            }, 200);
+            }, delay);
         });
     });
 
     Promise.all(promises).then(() => {
-        res.send([{WARNING:"RETURN AFTER RESPOND, DO NOT RELOAD HERE",urlsuccess, targetCount:urlsToSend.length, urlsToSend, urlLinkStatus}]);
+        res.send([{ WARNING: "RETURN AFTER RESPOND, DO NOT RELOAD HERE", urlsuccess, targetCount: urlsToSend.length, urlsToSend, urlLinkStatus }]);
     });
-})
+});
 
 app.listen(PORT, () => {
-  console.log(`Example app listening on port ${PORT}`)
-})
-
+    console.log(`Example app listening on port ${PORT}`);
+});
 
 function decodeToGoogleFormUrl(baseUrl, data) {
     baseUrl = baseUrl.replace(/viewform/, 'formResponse');
     const urlParams = new URLSearchParams();
 
     for (const entry of data) {
-        // console.log(entry)
         if (entry.name == "url") {
-            continue
+            continue;
         }
-        const name = entry.name; // This is the Google Form entry ID (e.g., "entry.1166587114")
-        const isMultipleChoice = entry.checkbox; // This is a boolean indicating if the question allows multiple selections
-        const hasOtherOption = entry.hasOtherOption; // This indicates if the question has an "Other" option
-        const items = entry.items; // This is the array of options and their chances
-        // console.log(entry)
-        // Use a variable to hold the selected result, which might be a string or an array of strings
+        const name = entry.name;
+        const isMultipleChoice = entry.checkbox;
+        const hasOtherOption = entry.hasOtherOption;
+        const items = entry.items;
         let selectedResult;
 
-        // Corrected conditional: 'entry.type' is a boolean, so compare directly to 'true' or 'false'
-        if (isMultipleChoice) { // If 'type' is true, it means independent/checkbox selection
+        if (isMultipleChoice) {
             selectedResult = selectIndependentOptions(items);
-            // console.log(name,"checkboxRAN++++++++++++++++", selectedResult)
-
-            // For independent selections (checkboxes), append each selected option
             selectedResult.forEach(option => {
                 if (hasOtherOption && option.isOtherOption) {
-                    urlParams.append(name + '.other_option_response', option.option)
-                    urlParams.append(name, '__other_option__')
-                }
-                else{
+                    urlParams.append(name + '.other_option_response', option.option);
+                    urlParams.append(name, '__other_option__');
+                } else {
                     urlParams.append(name, option.option);
                 }
             });
-
-        } else { // If 'type' is false, it means weighted/radio selection
+        } else {
             selectedResult = selectWeightedRandomItem(items);
-            // console.log(name,"USUALLRUN++++++++++++++++", selectedResult)
             if (selectedResult.isOtherOption) {
-                urlParams.append(name + '.other_option_response', selectedResult.option)
-                urlParams.append(name, '__other_option__')
-            }
-            else{
-                // For weighted selections (radio), append the single selected option
+                urlParams.append(name + '.other_option_response', selectedResult.option);
+                urlParams.append(name, '__other_option__');
+            } else {
                 urlParams.append(name, selectedResult.option);
             }
         }
     }
 
-    // Combine the base URL with the generated query parameters
     return `${baseUrl}&${urlParams.toString()}`;
 }
 
@@ -236,30 +173,26 @@ function parseData(formData) {
 
     for (const [entry, value] of Object.entries(formData)) {
         if (entry === "url" || entry === "respondCount") continue;
-        // if entry ends with answers do something
         if (entry.endsWith('_answers')) {
             const questionId = entry.split('_')[0];
             const multipleChoice = formData[`${questionId}_isMultipleChoice`];
             const otherOptionResponse = formData[`${questionId}.other_option_response`];
             const hasOtherOption = formData[`${questionId}.is_other_option`];
-            const items = []
+            const items = [];
             value.forEach((answer, i) => {
-                // console.log("answer", answer)
                 let isOtherOption = otherOptionResponse == answer;
                 const newAnswer = {
-                    option:answer,
+                    option: answer,
                     chance: formData[`${questionId}_chances`][i] || 0,
                     isOtherOption
                 };
-                items.push(newAnswer)
-            })
-            const chances = (formData[`${questionId}_chances`] || []).map(Number);
-            const isMultipleChoice = multipleChoice?multipleChoice[0]:false;
-            const otherOption = formData[entry.split('_')[0] + '.other_option_response']
+                items.push(newAnswer);
+            });
+            const isMultipleChoice = multipleChoice ? multipleChoice[0] : false;
             remappedOutput.push({
                 name: questionId,
                 checkbox: isMultipleChoice,
-                hasOtherOption: hasOtherOption?? false,
+                hasOtherOption: hasOtherOption ?? false,
                 items
             });
         }
@@ -267,53 +200,11 @@ function parseData(formData) {
     return remappedOutput;
 }
 
-function remapParsedData(allEntriesData) {
-    const remappedOutput = []; // Initialize as an array for the final output
-    // Iterate over each key (e.g., "entry.XXX")
-    for (const entryKey in allEntriesData) {
-        // Ensure the key belongs to the object itself, not its prototype chain
-        if (Object.prototype.hasOwnProperty.call(allEntriesData, entryKey)) {
-            const entryDetails = allEntriesData[entryKey];
-
-            // Initialize an array for the current entry's remapped items
-            const currentEntryRemappedItems = [];
-
-            // Loop through answers and chances for the current entry
-            // Note: No validation checks are performed here as per previous request.
-            // If entryDetails.answers or entryDetails.chances are null/undefined/not arrays,
-            // or have mismatched lengths, this loop might throw errors.
-            for (let i = 0; i < entryDetails.answers.length; i++) {
-                const answer = entryDetails.answers[i];
-                const chance = entryDetails.chances[i];
-
-                // Create the item object with 'option' and 'chance' properties
-                const itemObject = {
-                    option: answer,
-                    chance: chance
-                };
-
-                currentEntryRemappedItems.push(itemObject);
-            }
-
-            // Create the object for the current entry and push it to the final output array
-            remappedOutput.push({
-                name: entryKey,
-                checkbox: entryDetails.multipleChoice ?? false,
-                items: currentEntryRemappedItems
-            });
-        }
-    }
-
-    return remappedOutput;
-}
-
 function selectIndependentOptions(optionsWithProbabilities) {
     const selectedOptions = [];
     for (const item of optionsWithProbabilities) {
-        const chance = parseFloat(item.chance)
-        // Assume 'chance' is a number, either 0.0-1.0 or 0-100. Normalize to 0.0-1.0.
+        const chance = parseFloat(item.chance);
         const probability = chance > 1 ? chance / 100 : chance;
-
         if (Math.random() < probability) {
             selectedOptions.push(item);
         }
@@ -324,7 +215,7 @@ function selectIndependentOptions(optionsWithProbabilities) {
 function selectWeightedRandomItem(optionsWithWeights) {
     let totalWeight = 0;
     for (const item of optionsWithWeights) {
-        totalWeight += parseFloat(item.chance); // 'chance' is a weight here
+        totalWeight += parseFloat(item.chance);
     }
     const randomNumber = Math.random() * totalWeight;
     let cumulativeWeight = 0;
@@ -332,11 +223,9 @@ function selectWeightedRandomItem(optionsWithWeights) {
     for (const item of optionsWithWeights) {
         cumulativeWeight += parseFloat(item.chance);
         if (randomNumber < cumulativeWeight) {
-            return item; // Return the selected option's name
+            return item;
         }
     }
-
-    // Fallback: Returns the last item if floating point precision causes issues at the very end
     return optionsWithWeights[optionsWithWeights.length - 1];
 }
 
@@ -345,29 +234,19 @@ async function scrape(url) {
         const browser = await puppeteer.launch({ headless: true });
         const page = await browser.newPage();
         await page.goto(url, { waitUntil: 'networkidle2' });
-        // Wait specifically for the container or inputs to appear
-        // await page.waitForSelector('[jsname="o6bZLc"] input');
-
-        // Check if inputs exist
-        // const inputs = await page.$$('div[jsname="o6bZLc"] input');
-
-        // html = await page.content();
-        // return html
-
         const formData = await page.evaluate(() => {
             const questions = [];
             const questionEls = document.querySelectorAll('.Qr7Oae');
             let externalInputIndex = 0;
             questionEls.forEach((el, i) => {
-                const questionTextEl = el.querySelector('.M7eMe'); // Get the question text element
+                const questionTextEl = el.querySelector('.M7eMe');
                 const question = questionTextEl ? questionTextEl.innerText.trim() : 'Untitled question';
 
-                let name = null; // how
+                let name = null;
                 const inputEl = el.querySelector('input[name^="entry."], textarea[name^="entry."]');
                 if (inputEl) {
                     name = inputEl.getAttribute('name');
                 } else {
-                    // For radio groups or checkboxes, the name might be on the first input
                     const radioOrCheckInput = el.querySelector('input[type="radio"][name^="entry."], input[type="checkbox"][name^="entry."]');
                     if (radioOrCheckInput) {
                         name = radioOrCheckInput.getAttribute('name');
@@ -384,42 +263,39 @@ async function scrape(url) {
                 else if (el.querySelector('.eBFwI')) type = 'Checkboxes';
                 else if (el.querySelector('textarea')) type = 'Paragraph';
                 else if (el.querySelector('input[type="text"]')) type = 'Short Answer';
-                if(type == "Unknown") return
+                if (type == "Unknown") return;
 
                 if (name == null && type != "Unknown") {
-                    name = externalInputIndex
-                    externalInputIndex++
+                    name = externalInputIndex;
+                    externalInputIndex++;
                 } else {
                     name = name.split('_')[0];
                 }
-                
+
                 let hasOtherOptions = false;
                 const options = [];
                 if (type === 'Multiple Choice') {
                     el.querySelectorAll('.zwllIb:not(.zfdaxb)').forEach(opt => {
                         const text = opt.innerText.trim();
-                        options.push(text)
-                    })
+                        options.push(text);
+                    });
                     if (el.querySelector('.zfdaxb')) {
-                        hasOtherOptions = true; // Add "Other" option if it exists
+                        hasOtherOptions = true;
                     }
-                }
-                else if (type === 'Dropdown') {
+                } else if (type === 'Dropdown') {
                     el.querySelectorAll('.OIC90c[role="option"]').forEach(opt => {
                         const text = opt.innerText.trim();
                         if (text) options.push(text);
                     });
-                }
-                else if (type === 'Checkboxes') {
+                } else if (type === 'Checkboxes') {
                     el.querySelectorAll('.eBFwI:not(.RVLOe)').forEach(opt => {
                         const text = opt.innerText.trim();
                         if (text) options.push(text);
                         if (el.querySelector('.RVLOe')) {
-                            hasOtherOptions = true; // Add "Other" option if it exists
+                            hasOtherOptions = true;
                         }
                     });
-                }
-                else if (type === "Linear Scale") {
+                } else if (type === "Linear Scale") {
                     const numbersInEl = Array.from(el.querySelectorAll('.Zki2Ve')).map(e => e.innerText.trim());
                     const numbers = numbersInEl.length > 0
                         ? numbersInEl
@@ -436,54 +312,44 @@ async function scrape(url) {
                     } else {
                         options.push("Scale unavailable");
                     }
-                }
-                else if(type === "Rating"){
-                    type = "Linear Scale"
-                    el.querySelector('.vp2Xfc').querySelectorAll('.UNQpic').forEach((r)=>{
-                        options.push(r.textContent.trim())
-                    })
-                }
-                else if(type === "Multiple Choice Grid"){
-                    const options = []
-                    const row = el.querySelectorAll('.lLfZXe.fnxRtf.EzyPc')
-                    el.querySelector('.ssX1Bd.KZt9Tc').querySelectorAll('.OIC90c').forEach((c)=>{
-                        options.push(c.textContent)
-                    })
-                    row.forEach((r,i)=>{
-                        let name = r.querySelector("input[name^=entry]").getAttribute('name')
+                } else if (type === "Rating") {
+                    type = "Linear Scale";
+                    el.querySelector('.vp2Xfc').querySelectorAll('.UNQpic').forEach((r) => {
+                        options.push(r.textContent.trim());
+                    });
+                } else if (type === "Multiple Choice Grid") {
+                    const options = [];
+                    const row = el.querySelectorAll('.lLfZXe.fnxRtf.EzyPc');
+                    el.querySelector('.ssX1Bd.KZt9Tc').querySelectorAll('.OIC90c').forEach((c) => {
+                        options.push(c.textContent);
+                    });
+                    row.forEach((r, i) => {
+                        let name = r.querySelector("input[name^=entry]").getAttribute('name');
                         name = name.split('_')[0];
-                        // question.push({name:r.textContent, })
-                        // querySelector('.ssX1Bd.KZt9Tc').querySelectorAll('.OIC90c')
-                        questions.push({ name, question:r.textContent, type:"Multiple Choice", options, hasOtherOptions });
-                    })
-                }
-                else if(type === "Checkbox Grid"){
-                    el.querySelector('.ssX1Bd.KZt9Tc').querySelectorAll('.V4d7Ke.OIC90c').forEach((opt)=>{
-                        options.push(opt.textContent.trim())
-                    })
+                        questions.push({ name, question: r.textContent, type: "Multiple Choice", options, hasOtherOptions });
+                    });
+                } else if (type === "Checkbox Grid") {
+                    el.querySelector('.ssX1Bd.KZt9Tc').querySelectorAll('.V4d7Ke.OIC90c').forEach((opt) => {
+                        options.push(opt.textContent.trim());
+                    });
 
-                    el.querySelectorAll('.EzyPc.mxSrOe').forEach((r)=>{
-                        let name = r.querySelector("input[name^=entry]").getAttribute('name')
+                    el.querySelectorAll('.EzyPc.mxSrOe').forEach((r) => {
+                        let name = r.querySelector("input[name^=entry]").getAttribute('name');
                         name = name.split('_')[0];
-                        questions.push({ name, question, type:"Checkbox", options, hasOtherOptions });
+                        questions.push({ name, question, type: "Checkbox", options, hasOtherOptions });
                     });
                 }
 
-                if(type != "Multiple Choice Grid" || type != "Checkbox Grid"){
-                    // console.log(type)
-                    // !FIX hacky
-                    if(type == "Checkbox Grid"){}else{
-                        questions.push({ name, question, type, options, hasOtherOptions });
-                    }
+                if (type != "Multiple Choice Grid" && type != "Checkbox Grid") {
+                    questions.push({ name, question, type, options, hasOtherOptions });
                 }
             });
             let externalInputsName = [];
-            document.querySelectorAll('input[name^=entry]:not([name$=sentinel])').forEach((i) => { externalInputsName.push(i.name) })
+            document.querySelectorAll('input[name^=entry]:not([name$=sentinel])').forEach((i) => { externalInputsName.push(i.name); });
 
             questions.forEach(q => {
                 if (typeof q.name === 'number') {
-                    // q.name = "fuck";
-                    q.name = externalInputsName[q.name]; // Generate a random name if not found
+                    q.name = externalInputsName[q.name];
                 }
             });
             return questions;
