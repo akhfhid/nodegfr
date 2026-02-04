@@ -4,9 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Autofill - Automate Your Surveys</title>
+    <title>Autofill - Automate Your Gform</title>
 
-    <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
@@ -14,27 +13,44 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        /* --- 1. CORE VARIABLES & RESET --- */
         :root {
-            /* Palette */
             --bg-deep: #050505;
             --bg-card: rgba(255, 255, 255, 0.03);
-            /* Transparan untuk glassmorphism */
             --bg-card-hover: rgba(255, 255, 255, 0.07);
             --text-main: #ffffff;
             --text-muted: #a1a1aa;
 
-            /* Neon Accents */
+            --bg-input: rgba(255, 255, 255, 0.05);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --input-border: rgba(255, 255, 255, 0.1);
+            --shadow-soft: rgba(0, 0, 0, 0.2);
+            --header-bg: rgba(5, 5, 5, 0.8);
+            --header-border: rgba(255, 255, 255, 0.05);
             --primary: #8b5cf6;
-            /* Violet */
             --secondary: #06b6d4;
-            /* Cyan */
             --accent-glow: rgba(139, 92, 246, 0.5);
-
-            /* Dimensions */
             --border-radius: 20px;
             --max-width: 1100px;
             --transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        body.light-theme {
+            --bg-deep: #FAFAFA;
+            --bg-card: rgba(255, 255, 255, 0.6);
+            --bg-card-hover: rgba(255, 255, 255, 0.85);
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+
+            --bg-input: rgba(0, 0, 0, 0.03);
+            --border-color: rgba(0, 0, 0, 0.05);
+            --input-border: rgba(0, 0, 0, 0.08);
+            --shadow-soft: rgba(0, 0, 0, 0.05);
+            --header-bg: rgba(255, 255, 255, 0.8);
+            --header-border: rgba(0, 0, 0, 0.05);
+
+            --primary: #7c3aed;
+            --secondary: #0891b2;
+            --accent-glow: rgba(124, 58, 237, 0.3);
         }
 
         * {
@@ -53,7 +69,6 @@
             position: relative;
         }
 
-        /* --- 2. BACKGROUND ANIMATION (RINGAN - TANPA JS BERAT) --- */
         .ambient-bg {
             position: fixed;
             top: 0;
@@ -62,10 +77,9 @@
             height: 100vh;
             z-index: -1;
             overflow: hidden;
-            background: #050505;
+            background: var(--bg-deep);
         }
 
-        /* Orb 1 - Violet */
         .orb {
             position: absolute;
             border-radius: 50%;
@@ -83,7 +97,6 @@
             animation-delay: 0s;
         }
 
-        /* Orb 2 - Cyan */
         .orb-2 {
             width: 500px;
             height: 500px;
@@ -94,12 +107,10 @@
             animation-direction: alternate-reverse;
         }
 
-        /* Orb 3 - Purple Glow */
         .orb-3 {
             width: 300px;
             height: 300px;
             background: #d946ef;
-            /* Fuchsia */
             top: 40%;
             left: 50%;
             transform: translate(-50%, -50%);
@@ -107,7 +118,6 @@
             animation: pulseOrb 15s infinite ease-in-out;
         }
 
-        /* Noise Texture Overlay (Agar tidak terlalu licin/flat) */
         .noise-overlay {
             position: fixed;
             top: 0;
@@ -148,7 +158,6 @@
             }
         }
 
-        /* --- 3. LAYOUT & CONTAINER --- */
         .container {
             max-width: var(--max-width);
             margin: 0 auto;
@@ -157,29 +166,26 @@
             z-index: 1;
         }
 
-        /* --- 4. GLASS COMPONENTS --- */
-        /* Efek kaca buram umum */
+        /* --- GLASS COMPONENTS --- */
         .glass-panel {
             background: var(--bg-card);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
             border-radius: var(--border-radius);
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 24px var(--shadow-soft);
             transition: var(--transition);
         }
 
-        /* --- HEADER --- */
         header {
             position: sticky;
             top: 0;
             z-index: 100;
             width: 100%;
-            /* Header sedikit transparan saat scroll */
-            background: rgba(5, 5, 5, 0.8);
+            background: var(--header-bg);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid var(--header-border);
         }
 
         .header-inner {
@@ -198,7 +204,7 @@
             font-weight: 700;
             font-size: 1.5rem;
             letter-spacing: -1px;
-            color: #fff;
+            color: var(--text-main);
             text-decoration: none;
             transition: var(--transition);
         }
@@ -209,7 +215,7 @@
         }
 
         .logo span {
-            background: linear-gradient(to right, #fff, #a5b4fc);
+            background: linear-gradient(to right, var(--text-main), #6366f1);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -222,6 +228,7 @@
 
         nav {
             display: flex;
+            align-items: center;
             gap: 32px;
         }
 
@@ -246,14 +253,80 @@
         }
 
         nav a:hover {
-            color: #fff;
+            color: var(--text-main);
         }
 
         nav a:hover::after {
             width: 100%;
         }
 
-        /* --- HERO SECTION --- */
+        /* Theme Toggle Slider */
+        .theme-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+
+        .theme-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            transition: .4s;
+            border-radius: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 3px;
+            background-color: var(--primary);
+            transition: .4s;
+            border-radius: 50%;
+            z-index: 2;
+        }
+
+        input:checked+.slider {
+            background-color: var(--bg-input);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(30px);
+        }
+
+        .icon-dark,
+        .icon-light {
+            color: var(--text-muted);
+            font-size: 14px;
+            z-index: 1;
+        }
+
+        .icon-light {
+            color: #f59e0b;
+        }
+
+        input:checked+.slider .icon-dark {
+            opacity: 0.5;
+        }
+
         .hero {
             text-align: center;
             padding: 80px 0 100px;
@@ -266,7 +339,7 @@
             line-height: 1.1;
             margin-bottom: 24px;
             letter-spacing: -2px;
-            background: linear-gradient(to right, #fff, #a5b4fc);
+            background: linear-gradient(to right, var(--text-main), #6366f1);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -292,8 +365,8 @@
             position: relative;
             padding: 8px;
             border-radius: 100px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--bg-input);
+            border: 1px solid var(--input-border);
             display: flex;
             align-items: center;
             transition: var(--transition);
@@ -311,14 +384,14 @@
             flex: 1;
             background: transparent;
             border: none;
-            color: #fff;
+            color: var(--text-main);
             font-size: 1.1rem;
             padding: 0 24px;
             font-family: inherit;
         }
 
         .pill-input-container input::placeholder {
-            color: rgba(255, 255, 255, 0.4);
+            color: var(--text-muted);
         }
 
         .pill-input-container button {
@@ -366,7 +439,7 @@
         .feature-card:hover {
             transform: translateY(-8px);
             background: var(--bg-card-hover);
-            border-color: rgba(255, 255, 255, 0.2);
+            border-color: var(--border-color);
         }
 
         .icon-box {
@@ -392,7 +465,7 @@
         .feature-card h3 {
             font-size: 1.25rem;
             margin-bottom: 12px;
-            color: #fff;
+            color: var(--text-main);
         }
 
         .feature-card p {
@@ -401,7 +474,6 @@
             font-size: 0.95rem;
         }
 
-        /* --- PRICING SECTION --- */
         .section-header {
             text-align: center;
             margin-bottom: 60px;
@@ -466,7 +538,7 @@
             font-size: 2.5rem;
             font-weight: 700;
             margin-bottom: 8px;
-            color: #fff;
+            color: var(--text-main);
         }
 
         .package-price {
@@ -474,7 +546,7 @@
             color: var(--text-muted);
             margin-bottom: 30px;
             padding-bottom: 30px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid var(--header-border);
         }
 
         .package-price b {
@@ -485,8 +557,8 @@
         .btn-select {
             margin-top: auto;
             background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff;
+            border: 1px solid var(--input-border);
+            color: var(--text-main);
             padding: 16px;
             border-radius: 12px;
             font-weight: 600;
@@ -498,12 +570,11 @@
         }
 
         .btn-select:hover {
-            background: #fff;
-            color: #000;
-            border-color: #fff;
+            background: var(--text-main);
+            color: #fff;
+            border-color: var(--text-main);
         }
 
-        /* Highlight active card */
         .package-card.active {
             background: rgba(255, 255, 255, 0.08);
             border-color: var(--primary);
@@ -520,9 +591,8 @@
             background: #7c3aed;
         }
 
-        /* --- FOOTER --- */
         footer {
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            border-top: 1px solid var(--header-border);
             padding: 60px 0 40px;
             text-align: center;
         }
@@ -551,7 +621,6 @@
             letter-spacing: 1px;
         }
 
-        /* --- ANIMATIONS --- */
         @keyframes fadeInUp {
             from {
                 opacity: 0;
@@ -567,7 +636,6 @@
         .fade-out-active {
             animation: fadeOutPage 0.8s ease-out forwards;
             pointer-events: none;
-            /* Prevent clicking during fade out */
         }
 
         @keyframes fadeOutPage {
@@ -584,7 +652,6 @@
             }
         }
 
-        /* --- MODAL --- */
         .modal {
             display: none;
             position: fixed;
@@ -601,8 +668,8 @@
         }
 
         .modal-content {
-            background: #121212;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--bg-deep);
+            border: 1px solid var(--border-color);
             border-radius: 20px;
             width: 90%;
             max-width: 600px;
@@ -618,17 +685,16 @@
             top: 20px;
             right: 20px;
             font-size: 24px;
-            color: #666;
+            color: #999;
             cursor: pointer;
             transition: 0.2s;
         }
 
         .close:hover {
-            color: #fff;
+            color: var(--primary);
             transform: rotate(90deg);
         }
 
-        /* --- LOADING OVERLAY --- */
         #loading-overlay {
             position: fixed;
             top: 0;
@@ -649,7 +715,7 @@
         .loader {
             width: 60px;
             height: 60px;
-            border: 5px solid var(--bg-glass);
+            border: 5px solid var(--bg-card);
             border-top: 5px solid var(--primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
@@ -684,7 +750,6 @@
             font-size: 0.9rem;
         }
 
-        /* --- CUSTOM SCROLLBARS --- */
         ::-webkit-scrollbar {
             width: 10px;
         }
@@ -705,7 +770,6 @@
             background-clip: content-box;
         }
 
-        /* --- RESPONSIVE --- */
         @media (max-width: 768px) {
             .hero h1 {
                 font-size: 2.5rem;
@@ -715,7 +779,6 @@
                 display: none;
             }
 
-            /* Sembunyikan menu di mobile untuk kesederhanaan */
             .orb-1 {
                 width: 250px;
                 height: 250px;
@@ -742,7 +805,6 @@
 
 <body>
 
-    <!-- 1. BACKGROUND ANIMATION LAYER (PURE CSS) -->
     <div class="ambient-bg">
         <div class="orb orb-1"></div>
         <div class="orb orb-2"></div>
@@ -750,14 +812,12 @@
         <div class="noise-overlay"></div>
     </div>
 
-    <!-- LOADING OVERLAY -->
     <div id="loading-overlay">
         <div class="loader"></div>
         <div class="loading-text">Fetching Form Data</div>
         <div class="loading-subtext">Initializing scanner, please wait while we process the Google Form...</div>
     </div>
 
-    <!-- 2. MAIN CONTENT -->
     <header>
         <div class="header-inner" id="main-header">
             <a href="/" class="logo">
@@ -765,6 +825,13 @@
                 <span>AUTOFILL</span>
             </a>
             <nav>
+                <label class="theme-switch" title="Switch Theme">
+                    <input type="checkbox" id="theme-checkbox" onchange="toggleTheme(this)">
+                    <span class="slider round">
+                        <i class="fa-solid fa-moon icon-dark"></i>
+                        <i class="fa-solid fa-sun icon-light"></i>
+                    </span>
+                </label>
                 <a href="#features">Features</a>
                 <a href="#pricelist">Pricelist</a>
                 <a href="#" onclick="openTutorial(); return false;">Tutorial</a>
@@ -871,6 +938,33 @@
     </div>
 
     <script>
+        // Theme Switcher Logic
+        function toggleTheme(checkbox) {
+            const isLight = checkbox.checked;
+
+            if (isLight) {
+                document.body.classList.add('light-theme');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.body.classList.remove('light-theme');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Initialize Theme on Load
+        (function () {
+            const savedTheme = localStorage.getItem('theme');
+            const checkbox = document.getElementById('theme-checkbox');
+
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-theme');
+                if (checkbox) checkbox.checked = true;
+            } else {
+                document.body.classList.remove('light-theme');
+                if (checkbox) checkbox.checked = false;
+            }
+        })();
+
         function start() {
             const input = document.getElementById('formurl');
             const status = document.getElementById('form-status');

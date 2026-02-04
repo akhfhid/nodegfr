@@ -16,31 +16,54 @@
   <style>
     /* --- 1. CORE VARIABLES & RESET (SAMA DENGAN HOME) --- */
     :root {
+      /* Palette - Default Dark Theme */
       --bg-deep: #050505;
-      --bg-glass: rgba(255, 255, 255, 0.03);
-      /* Glass background */
-      --bg-glass-hover: rgba(255, 255, 255, 0.07);
-      --bg-input: rgba(255, 255, 255, 0.05);
-
+      --bg-card: rgba(255, 255, 255, 0.03);
+      --bg-card-hover: rgba(255, 255, 255, 0.07);
       --text-main: #ffffff;
       --text-muted: #a1a1aa;
 
+      --bg-input: rgba(255, 255, 255, 0.05);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --input-border: rgba(255, 255, 255, 0.1);
+      --shadow-soft: rgba(0, 0, 0, 0.2);
+      --header-bg: rgba(5, 5, 5, 0.8);
+      --header-border: rgba(255, 255, 255, 0.05);
+
       /* Neon Accents */
       --primary: #8b5cf6;
-      /* Violet */
       --secondary: #06b6d4;
-      /* Cyan */
-      --accent-success: #10b981;
-      /* Emerald */
-      --accent-danger: #ef4444;
-      /* Red */
-      --accent-warning: #f59e0b;
-      /* Amber */
+      --accent-glow: rgba(139, 92, 246, 0.5);
 
+      /* Status Colors */
+      --accent-success: #10b981;
+      --accent-danger: #ef4444;
+      --accent-warning: #f59e0b;
+
+      /* Dimensions */
       --border-radius: 20px;
       --btn-radius: 50px;
-      /* Pill shape */
       --transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    /* Light Theme Overrides */
+    body.light-theme {
+      --bg-deep: #FAFAFA;
+      --bg-card: rgba(255, 255, 255, 0.6);
+      --bg-card-hover: rgba(255, 255, 255, 0.85);
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+
+      --bg-input: rgba(0, 0, 0, 0.03);
+      --border-color: rgba(0, 0, 0, 0.05);
+      --input-border: rgba(0, 0, 0, 0.08);
+      --shadow-soft: rgba(0, 0, 0, 0.05);
+      --header-bg: rgba(255, 255, 255, 0.8);
+      --header-border: rgba(0, 0, 0, 0.05);
+
+      --primary: #7c3aed;
+      --secondary: #0891b2;
+      --accent-glow: rgba(124, 58, 237, 0.3);
     }
 
     * {
@@ -68,7 +91,7 @@
       height: 100vh;
       z-index: -1;
       overflow: hidden;
-      background: #050505;
+      background: var(--bg-deep);
     }
 
     .orb {
@@ -163,10 +186,10 @@
       top: 0;
       z-index: 100;
       width: 100%;
-      background: rgba(5, 5, 5, 0.8);
+      background: var(--header-bg);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid var(--header-border);
       margin-bottom: 40px;
     }
 
@@ -186,7 +209,7 @@
       font-weight: 700;
       font-size: 1.5rem;
       letter-spacing: -1px;
-      color: #fff;
+      color: var(--text-main);
       text-decoration: none;
       transition: var(--transition);
     }
@@ -197,7 +220,7 @@
     }
 
     .logo span {
-      background: linear-gradient(to right, #fff, #a5b4fc);
+      background: linear-gradient(to right, var(--text-main), #6366f1);
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -223,11 +246,11 @@
 
     .url-change-input {
       flex: 1;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: var(--bg-input);
+      border: 1px solid var(--input-border);
       border-radius: 50px;
       padding: 12px 20px;
-      color: #fff;
+      color: var(--text-main);
       font-family: inherit;
       font-size: 0.9rem;
       transition: var(--transition);
@@ -236,13 +259,13 @@
     .url-change-input:focus {
       border-color: var(--primary);
       background: rgba(255, 255, 255, 0.1);
-      box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+      box-shadow: 0 0 15px rgba(124, 58, 237, 0.2);
     }
 
     .btn-change {
-      background: var(--bg-glass);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: #fff;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
       padding: 8px 18px;
       border-radius: 50px;
       font-size: 0.85rem;
@@ -259,6 +282,7 @@
 
     nav {
       display: flex;
+      align-items: center;
       gap: 32px;
     }
 
@@ -283,7 +307,74 @@
     }
 
     nav a:hover {
-      color: #fff;
+      color: var(--text-main);
+    }
+
+    /* Theme Toggle Slider */
+    .theme-switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 30px;
+    }
+
+    .theme-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      transition: .4s;
+      border-radius: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 8px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 22px;
+      width: 22px;
+      left: 4px;
+      bottom: 3px;
+      background-color: var(--primary);
+      transition: .4s;
+      border-radius: 50%;
+      z-index: 2;
+    }
+
+    input:checked+.slider {
+      background-color: var(--bg-input);
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(30px);
+    }
+
+    .icon-dark,
+    .icon-light {
+      color: var(--text-muted);
+      font-size: 14px;
+      z-index: 1;
+    }
+
+    .icon-light {
+      color: #f59e0b;
+    }
+
+    input:checked+.slider .icon-dark {
+      opacity: 0.5;
     }
 
     nav a:hover::after {
@@ -292,20 +383,20 @@
 
     /* Glass Panel Class */
     .glass-panel {
-      background: var(--bg-glass);
+      background: var(--bg-card);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-color);
       border-radius: var(--border-radius);
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 4px 24px var(--shadow-soft);
       transition: var(--transition);
       padding: 30px;
       margin-bottom: 25px;
     }
 
     .glass-panel:hover {
-      background: var(--bg-glass-hover);
-      border-color: rgba(255, 255, 255, 0.15);
+      background: var(--bg-card-hover);
+      border-color: var(--border-color);
       transform: translateY(-2px);
     }
 
@@ -335,8 +426,8 @@
     textarea,
     select {
       background: var(--bg-input);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: #fff;
+      border: 1px solid var(--input-border);
+      color: var(--text-main);
       padding: 14px;
       border-radius: 12px;
       font-family: inherit;
@@ -348,8 +439,8 @@
     input:focus,
     textarea:focus {
       border-color: var(--primary);
-      background: rgba(255, 255, 255, 0.1);
-      box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+      background: rgba(255, 255, 255, 0.05);
+      box-shadow: 0 0 15px rgba(124, 58, 237, 0.2);
     }
 
     /* --- QUESTION STYLING --- */
@@ -359,13 +450,13 @@
       align-items: center;
       margin-bottom: 20px;
       padding-bottom: 15px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid var(--header-border);
     }
 
     .question-title {
       font-size: 1.1rem;
       font-weight: 600;
-      color: #fff;
+      color: var(--text-main);
       display: flex;
       align-items: center;
       gap: 10px;
@@ -373,7 +464,7 @@
 
     .badge {
       font-size: 0.7rem;
-      background: rgba(255, 255, 255, 0.1);
+      background: var(--bg-input);
       color: var(--text-muted);
       padding: 4px 10px;
       border-radius: 20px;
@@ -394,7 +485,7 @@
       align-items: center;
       gap: 15px;
       margin-bottom: 12px;
-      background: rgba(0, 0, 0, 0.2);
+      background: var(--bg-input);
       padding: 15px;
       border-radius: 12px;
       border: 1px solid transparent;
@@ -402,14 +493,14 @@
     }
 
     .answer-options li:hover {
-      border-color: rgba(255, 255, 255, 0.1);
-      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--border-color);
+      background: var(--bg-input);
     }
 
     .answer-options label {
       flex: 2;
       font-size: 0.95rem;
-      color: #ddd;
+      color: var(--text-main);
     }
 
     /* Percentage Input Custom Styling */
@@ -424,7 +515,7 @@
       text-align: right;
       font-weight: bold;
       color: var(--secondary);
-      border-color: rgba(255, 255, 255, 0.05);
+      border-color: var(--input-border);
     }
 
     .percent-input-wrapper::after {
@@ -449,13 +540,13 @@
     .chance-total {
       margin-top: 20px;
       padding: 12px;
-      background: rgba(0, 0, 0, 0.4);
+      background: var(--bg-input);
       border-radius: 10px;
       display: flex;
       justify-content: center;
       align-items: center;
       gap: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--input-border);
       font-weight: 600;
       font-size: 0.9rem;
     }
@@ -489,8 +580,8 @@
     }
 
     .btn-icon:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
+      background: var(--bg-input);
+      color: var(--text-main);
     }
 
     .btn-remove:hover {
@@ -502,9 +593,9 @@
       width: 100%;
       padding: 12px;
       border-radius: 12px;
-      background: rgba(255, 255, 255, 0.05);
+      background: var(--bg-input);
       color: var(--text-muted);
-      border: 1px dashed rgba(255, 255, 255, 0.2);
+      border: 1px dashed var(--input-border);
       margin-top: 10px;
       text-transform: uppercase;
       font-size: 0.85rem;
@@ -512,7 +603,7 @@
     }
 
     .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.1);
       color: var(--primary);
       border-color: var(--primary);
     }
@@ -556,7 +647,7 @@
       top: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(0, 0, 0, 0.85);
+      background-color: var(--header-bg);
       backdrop-filter: blur(8px);
       animation: fadeIn 0.3s;
       align-items: center;
@@ -564,9 +655,9 @@
     }
 
     .modal-content {
-      background: #121212;
+      background: var(--bg-deep);
       /* Solid dark for chart readability */
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--border-color);
       border-radius: 20px;
       width: 90%;
       max-width: 900px;
@@ -589,7 +680,7 @@
     }
 
     .close:hover {
-      color: #fff;
+      color: var(--primary);
       transform: rotate(90deg);
     }
 
@@ -601,10 +692,10 @@
     }
 
     .chart-card {
-      background: #1a1a1a;
+      background: var(--bg-deep);
       padding: 15px;
       border-radius: 12px;
-      border: 1px solid #333;
+      border: 1px solid var(--border-color);
     }
 
     /* Animations */
@@ -699,6 +790,13 @@
         <span>AUTOFILL</span>
       </a>
       <nav>
+        <label class="theme-switch" title="Switch Theme">
+          <input type="checkbox" id="theme-checkbox" onchange="toggleTheme(this)">
+          <span class="slider round">
+            <i class="fa-solid fa-moon icon-dark"></i>
+            <i class="fa-solid fa-sun icon-light"></i>
+          </span>
+        </label>
         <a href="/#features">Features</a>
         <a href="/#pricelist">Pricelist</a>
         <a href="#" onclick="openTutorial(); return false;">Tutorial</a>
@@ -707,7 +805,6 @@
   </header>
 
   <div class="container">
-    <!-- Quick Change URL Panel -->
     <div class="glass-panel url-change-panel">
       <i class="fa-solid fa-link" style="color: var(--secondary); font-size: 1.2rem;"></i>
       <input type="text" id="quickUrlInput" class="url-change-input" value="<%=url%>"
@@ -717,7 +814,6 @@
 
     <form id="probabilityForm" method="post" action="/save-probabilities">
 
-      <!-- Global Config Panel -->
       <section class="glass-panel config-panel">
         <div class="form-grid">
           <div class="input-group">
@@ -741,7 +837,6 @@
 
       <input type="text" hidden name="url" value="<%=url%>">
 
-      <!-- EJS LOOP FOR QUESTIONS -->
       <% questions.forEach((q)=> { %>
         <div class="glass-panel question-container">
           <input type="hidden" name="<%= q.name %>_text" value="<%= q.question %>">
@@ -949,16 +1044,40 @@
       </h2>
       <div class="tutorial-body" style="color: #ccc; line-height: 1.6;">
         <p>Tutorial content will be added here soon...</p>
-        <!-- User will provide actual content later -->
+        <!-- Content Tutorial -->
       </div>
     </div>
   </div>
 
   <script>
-    // --- LOGIC: INPUT CALCULATION ---
+    function toggleTheme(checkbox) {
+      const isLight = checkbox.checked;
+
+      if (isLight) {
+        document.body.classList.add('light-theme');
+        localStorage.setItem('theme', 'light');
+      } else {
+        document.body.classList.remove('light-theme');
+        localStorage.setItem('theme', 'dark');
+      }
+    }
+
+    (function () {
+      const savedTheme = localStorage.getItem('theme');
+      const checkbox = document.getElementById('theme-checkbox');
+
+      if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+        if (checkbox) checkbox.checked = true;
+      } else {
+        document.body.classList.remove('light-theme');
+        if (checkbox) checkbox.checked = false;
+      }
+    })();
+
     let allQuestions = document.querySelectorAll('.question-container')
     allQuestions.forEach(el => el.querySelectorAll('input[data-target-name]').forEach(input => {
-      input.addEventListener('input', function () { // Changed to 'input' for real-time updates
+      input.addEventListener('input', function () {
         let allInputs = this.closest('.question-container').querySelectorAll('input[data-target-name]')
         handleInputChange(this, allInputs);
       });
@@ -983,7 +1102,6 @@
       updateChanceTotals();
     }
 
-    // --- LOGIC: ADD OPTIONS ---
     document.querySelectorAll('.add-option').forEach(button => {
       button.addEventListener('click', function () {
         const questionName = this.getAttribute('data-question');
