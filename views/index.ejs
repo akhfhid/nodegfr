@@ -4,439 +4,1284 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Survey Form</title>
+  <title>Autofill - Configure</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
+    /* --- 1. CORE VARIABLES & RESET (SAMA DENGAN HOME) --- */
+    :root {
+      --bg-deep: #050505;
+      --bg-glass: rgba(255, 255, 255, 0.03);
+      /* Glass background */
+      --bg-glass-hover: rgba(255, 255, 255, 0.07);
+      --bg-input: rgba(255, 255, 255, 0.05);
+
+      --text-main: #ffffff;
+      --text-muted: #a1a1aa;
+
+      /* Neon Accents */
+      --primary: #8b5cf6;
+      /* Violet */
+      --secondary: #06b6d4;
+      /* Cyan */
+      --accent-success: #10b981;
+      /* Emerald */
+      --accent-danger: #ef4444;
+      /* Red */
+      --accent-warning: #f59e0b;
+      /* Amber */
+
+      --border-radius: 20px;
+      --btn-radius: 50px;
+      /* Pill shape */
+      --transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      outline: none;
+    }
+
+    body {
+      background-color: var(--bg-deep);
+      color: var(--text-main);
+      font-family: 'Space Grotesk', sans-serif;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* --- 2. BACKGROUND ANIMATION (SAMA DENGAN HOME) --- */
+    .ambient-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -1;
+      overflow: hidden;
+      background: #050505;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.5;
+      animation: floatOrb 20s infinite ease-in-out;
+    }
+
+    .orb-1 {
+      width: 400px;
+      height: 400px;
+      background: var(--primary);
+      top: -100px;
+      left: -100px;
+    }
+
+    .orb-2 {
+      width: 500px;
+      height: 500px;
+      background: var(--secondary);
+      bottom: -150px;
+      right: -150px;
+      animation-delay: -5s;
+      animation-direction: alternate-reverse;
+    }
+
+    .orb-3 {
+      width: 300px;
+      height: 300px;
+      background: #d946ef;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0.2;
+      animation: pulseOrb 15s infinite;
+    }
+
+    .noise-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      pointer-events: none;
+    }
+
+    @keyframes floatOrb {
+      0% {
+        transform: translate(0, 0);
+      }
+
+      50% {
+        transform: translate(30px, 50px);
+      }
+
+      100% {
+        transform: translate(0, 0);
+      }
+    }
+
+    @keyframes pulseOrb {
+
+      0%,
+      100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.2;
+      }
+
+      50% {
+        transform: translate(-50%, -50%) scale(1.2);
+        opacity: 0.4;
+      }
+    }
+
+    /* --- 3. LAYOUT & GLASS COMPONENTS --- */
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* --- HEADER --- */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      width: 100%;
+      background: rgba(5, 5, 5, 0.8);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      margin-bottom: 40px;
+    }
+
+    .header-inner {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 1.5rem;
+      letter-spacing: -1px;
+      color: #fff;
+      text-decoration: none;
+      transition: var(--transition);
+    }
+
+    .logo i {
+      color: var(--secondary);
+      filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.4));
+    }
+
+    .logo span {
+      background: linear-gradient(to right, #fff, #a5b4fc);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .logo:hover {
+      transform: scale(1.05);
+      text-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+    }
+
+    .logo img {
+      height: 32px;
+    }
+
+    /* --- URL QUICK CHANGE PANEL --- */
+    .url-change-panel {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      padding: 15px 25px !important;
+      margin-bottom: 20px !important;
+    }
+
+    .url-change-input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50px;
+      padding: 12px 20px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.9rem;
+      transition: var(--transition);
+    }
+
+    .url-change-input:focus {
+      border-color: var(--primary);
+      background: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+    }
+
+    .btn-change {
+      background: var(--bg-glass);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      padding: 8px 18px;
+      border-radius: 50px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .btn-change:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+
+    nav {
+      display: flex;
+      gap: 32px;
+    }
+
+    nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.9rem;
+      transition: var(--transition);
+      position: relative;
+    }
+
+    nav a::after {
+      content: '';
+      position: absolute;
+      width: 0;
+      height: 2px;
+      bottom: -4px;
+      left: 0;
+      background: var(--secondary);
+      transition: width 0.3s;
+    }
+
+    nav a:hover {
+      color: #fff;
+    }
+
+    nav a:hover::after {
+      width: 100%;
+    }
+
+    /* Glass Panel Class */
+    .glass-panel {
+      background: var(--bg-glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--border-radius);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+      transition: var(--transition);
+      padding: 30px;
+      margin-bottom: 25px;
+    }
+
+    .glass-panel:hover {
+      background: var(--bg-glass-hover);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+    }
+
+    /* --- FORM INPUTS --- */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .input-group label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    textarea,
+    select {
+      background: var(--bg-input);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      padding: 14px;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 1rem;
+      width: 100%;
+      transition: var(--transition);
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: var(--primary);
+      background: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+    }
+
+    /* --- QUESTION STYLING --- */
+    .question-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .question-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    /* Answer List */
+    .answer-options {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .answer-options li,
+    .other-option {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 12px;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 15px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      transition: var(--transition);
+    }
+
+    .answer-options li:hover {
+      border-color: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .answer-options label {
+      flex: 2;
+      font-size: 0.95rem;
+      color: #ddd;
+    }
+
+    /* Percentage Input Custom Styling */
+    .percent-input-wrapper {
+      position: relative;
+      width: 90px;
+      flex-shrink: 0;
+    }
+
+    .percent-input-wrapper input {
+      padding-right: 30px;
+      text-align: right;
+      font-weight: bold;
+      color: var(--secondary);
+      border-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .percent-input-wrapper::after {
+      content: '%';
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #666;
+      font-size: 0.8rem;
+    }
+
+    .calc-display {
+      font-family: monospace;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      width: 60px;
+      text-align: right;
+    }
+
+    /* Total Bar */
+    .chance-total {
+      margin-top: 20px;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #333;
+      box-shadow: 0 0 5px currentColor;
+    }
+
+    /* --- BUTTONS --- */
+    button {
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 600;
+      border: none;
+      transition: var(--transition);
+    }
+
+    .btn-icon {
+      background: transparent;
+      color: var(--text-muted);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-icon:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .btn-remove:hover {
+      background: var(--accent-danger);
+      color: white;
+    }
+
+    .btn-secondary {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      border: 1px dashed rgba(255, 255, 255, 0.2);
+      margin-top: 10px;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .submit-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 16px 32px;
+      background: linear-gradient(135deg, var(--primary), #7c3aed);
+      color: white;
+      border-radius: var(--btn-radius);
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+      white-space: nowrap;
+    }
+
+    .submit-btn-full {
+      width: 100%;
+      display: flex;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(139, 92, 246, 0.5);
+    }
+
+    .submit-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* --- MODAL --- */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 2000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      animation: fadeIn 0.3s;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background: #121212;
+      /* Solid dark for chart readability */
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      width: 90%;
+      max-width: 900px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 30px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      animation: scaleUp 0.3s;
+      position: relative;
+    }
+
+    .close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 24px;
+      color: #666;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .close:hover {
+      color: #fff;
+      transform: rotate(90deg);
+    }
+
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .chart-card {
+      background: #1a1a1a;
+      padding: 15px;
+      border-radius: 12px;
+      border: 1px solid #333;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes scaleUp {
+      from {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .text-danger {
+      color: var(--accent-danger) !important;
+    }
+
+    .text-success {
+      color: var(--accent-success) !important;
+    }
+
+    .border-danger {
+      border-color: var(--accent-danger) !important;
+    }
+
+    .border-success {
+      border-color: var(--accent-success) !important;
+    }
+
+    /* Responsive */
+    @media(max-width: 768px) {
+      .answer-options li {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .percent-input-wrapper,
+      .calc-display {
+        width: 100%;
+      }
+    }
+
+    /* --- CUSTOM SCROLLBARS --- */
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--primary);
+      background-clip: content-box;
+    }
   </style>
 </head>
 
 <body>
-  <form id="probabilityForm" method="post" action="/save-probabilities">
-    <div>
-      <label for="">namefaker</label>
-      <input name="name-faker" type="input"><br>
-      <label for="">gender</label>
-      <input name="gender-faker" type="input"><br>
-      <label for="">cityfaker</label>
-      <input name="city-faker" type="input"><br>
+
+  <!-- BACKGROUND ANIMATION -->
+  <div class="ambient-bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="noise-overlay"></div>
+  </div>
+
+  <header>
+    <div class="header-inner">
+      <a href="/" class="logo">
+        <i class="fa-solid fa-bolt"></i>
+        <span>AUTOFILL</span>
+      </a>
+      <nav>
+        <a href="/#features">Features</a>
+        <a href="/#pricelist">Pricelist</a>
+        <a href="#" onclick="openTutorial(); return false;">Tutorial</a>
+      </nav>
     </div>
-    <br>
-    <div>
-      <label for="">dont repeat question name</label>
-      <input name="dont-repeat_target" type="text">
+  </header>
+
+  <div class="container">
+    <!-- Quick Change URL Panel -->
+    <div class="glass-panel url-change-panel">
+      <i class="fa-solid fa-link" style="color: var(--secondary); font-size: 1.2rem;"></i>
+      <input type="text" id="quickUrlInput" class="url-change-input" value="<%=url%>"
+        placeholder="Paste another Google Form link...">
+      <button type="button" class="btn-change" onclick="changeForm()">Change Form</button>
     </div>
+
+    <form id="probabilityForm" method="post" action="/save-probabilities">
+
+      <!-- Global Config Panel -->
+      <section class="glass-panel config-panel">
+        <div class="form-grid">
+          <div class="input-group">
+            <label><i class="fa-solid fa-user-secret"></i> Faker Name</label>
+            <input name="name-faker" type="text" placeholder="John Doe">
+          </div>
+          <div class="input-group">
+            <label><i class="fa-solid fa-venus-mars"></i> Gender</label>
+            <input name="gender-faker" type="text" placeholder="Male/Female">
+          </div>
+          <div class="input-group">
+            <label><i class="fa-solid fa-city"></i> City</label>
+            <input name="city-faker" type="text" placeholder="City Name">
+          </div>
+          <div class="input-group">
+            <label><i class="fa-solid fa-ban"></i> Anti-Repeat</label>
+            <input name="dont-repeat_target" type="text" placeholder="Target Name">
+          </div>
+        </div>
+      </section>
+
       <input type="text" hidden name="url" value="<%=url%>">
-    <% questions.forEach((q) => { %>
-    <div class="question-container">
-      <h4><%= q.question %> (<%= q.type %>)</h4><p><%=q.name%></p>
 
-      <% if (q.type === "Short Answer") { %>
-      <ul class="answer-options">
-        <li class="option-input">
-          <input type="text" name="<%= q.name %>_answers[]" placeholder="Possible answer 1" required>
-          <input type="number" data-target-name="<%= q.name %>_chances[]" value="100" min="0" max="100" placeholder="% chance" required>
-          <input type="hidden" name="<%= q.name %>_chances[]" value="100" min="0" max="100" required>
-          <p>100.00</p>
-          <button type="button" class="remove-option" style="display: none;">×</button>
-        </li>
-      </ul>
-      <button type="button" class="add-option" data-question="<%= q.name %>">Add More Possible Answers</button>
-      <div class="chance-total" data-question="<%= q.name %>">Total: 0%</div>
+      <!-- EJS LOOP FOR QUESTIONS -->
+      <% questions.forEach((q)=> { %>
+        <div class="glass-panel question-container">
+          <input type="hidden" name="<%= q.name %>_text" value="<%= q.question %>">
 
-      <% } else if (q.type === "Paragraph") { %>
-      <ul class="answer-options">
-        <li class="option-input">
-          <textarea name="<%= q.name %>_answers[]" rows="3" placeholder="Possible answer 1" required></textarea>
-          <input type="number" data-target-name="<%= q.name %>_chances[]" value="100" min="0" max="100" placeholder="% chance" required>
-          <input type="hidden" name="<%= q.name %>_chances[]" value="100" min="0" max="100" required>
-          <button type="button" class="remove-option" style="display: none;">×</button>
-          <p>100.00</p>
-        </li>
-      </ul>
-      <button type="button" class="add-option" data-question="<%= q.name %>">Add More Possible Answers</button>
-      <div class="chance-total" data-question="<%= q.name %>">Total: 0%</div>
+          <div class="question-header">
+            <div class="question-title">
+              <i class="fa-regular fa-circle-question" style="color: var(--secondary)"></i>
+              <%= q.question %>
+            </div>
+            <span class="badge">
+              <%= q.type %>
+            </span>
+          </div>
 
-      <% } else if (q.type === "Multiple Choice") { %>
-      <ul class="answer-options">
-        <% q.options.forEach((option, index) => { %>
-        <li>
-          <label><%= option %></label>
-          <input type="hidden" name="<%= q.name %>_answers[]" value="<%= option %>">
-          <input type="number" data-order="<% index %>" data-target-name="<%= q.name %>_chances[]" value="0" min="0" max="100" placeholder="% chance" required>
-          <input type="hidden" name="<%= q.name %>_chances[]" value="0" min="0" max="100" required>
-          <p>0.00</p>
-        </li>
+          <% if (q.type==="Short Answer" ) { %>
+            <ul class="answer-options">
+              <li class="option-input"
+                style="flex-direction: column; align-items: stretch; background: transparent; border: none; padding: 0;">
+                <textarea name="<%= q.name %>_answers[]" rows="3"
+                  placeholder="Type each possible answer on a new line..." required></textarea>
+                <input type="hidden" name="<%= q.name %>_chances[]" value="100">
+                <div style="font-size: 0.8rem; color: var(--accent-success); margin-top: 8px;">
+                  <i class="fa-solid fa-check"></i> Equal random distribution enabled
+                </div>
+              </li>
+            </ul>
+
+            <% } else if (q.type==="Paragraph" ) { %>
+              <ul class="answer-options">
+                <li class="option-input">
+                  <textarea name="<%= q.name %>_answers[]" rows="2" placeholder="Possible answer..." required
+                    style="flex:1"></textarea>
+                  <div class="percent-input-wrapper">
+                    <input type="number" data-target-name="<%= q.name %>_chances[]" value="100" min="0" max="100"
+                      required>
+                  </div>
+                  <input type="hidden" name="<%= q.name %>_chances[]" value="100" min="0" max="100" required>
+                  <div class="calc-display">100.00</div>
+                  <button type="button" class="btn-icon remove-option" style="display: none;"><i
+                      class="fa-solid fa-xmark"></i></button>
+                </li>
+              </ul>
+              <button type="button" class="btn-secondary add-option" data-question="<%= q.name %>">
+                <i class="fa-solid fa-plus"></i> Add Answer Variant
+              </button>
+              <div class="chance-total" data-question="<%= q.name %>">
+                <div class="status-dot"></div> <span class="val">Total: 0%</span>
+              </div>
+
+              <% } else if (q.type==="Multiple Choice" ) { %>
+                <ul class="answer-options">
+                  <% q.options.forEach((option, index)=> { %>
+                    <li>
+                      <label>
+                        <%= option %>
+                      </label>
+                      <input type="hidden" name="<%= q.name %>_answers[]" value="<%= option %>">
+                      <div class="percent-input-wrapper">
+                        <input type="number" data-order="<%= index %>" data-target-name="<%= q.name %>_chances[]"
+                          value="0" min="0" max="100" required>
+                      </div>
+                      <input type="hidden" name="<%= q.name %>_chances[]" value="0" min="0" max="100" required>
+                      <div class="calc-display">0.00</div>
+                    </li>
+                    <% }) %>
+                </ul>
+                <% if (q.hasOtherOptions) { %>
+                  <div id="<%= q.name %>-other-container" class="other-options-container"></div>
+                  <button type="button" class="btn-secondary add-other-option" data-question="<%= q.name %>">
+                    <i class="fa-solid fa-pen-to-square"></i> Add 'Other' Option
+                  </button>
+                  <% } %>
+                    <div class="chance-total" data-question="<%= q.name %>">
+                      <div class="status-dot"></div> <span class="val">Total: 0%</span>
+                    </div>
+
+                    <% } else if (q.type==="Checkboxes" ) { %>
+                      <input type="hidden" name="<%= q.name + '_isMultipleChoice[]' %>" value="true">
+                      <ul class="answer-options">
+                        <% q.options.forEach((option, index)=> { %>
+                          <li>
+                            <label>
+                              <%= option %>
+                            </label>
+                            <input type="hidden" name="<%= q.name %>_answers[]" value="<%= option %>">
+                            <div class="percent-input-wrapper">
+                              <input type="number" data-order="<% index %>" data-target-name="<%= q.name %>_chances[]"
+                                value="100" min="0" max="100" required>
+                            </div>
+                            <input type="hidden" name="<%= q.name %>_chances[]" value="100" min="0" max="100" required>
+                            <div class="calc-display">100.00</div>
+                          </li>
+                          <% }) %>
+                      </ul>
+                      <% if (q.hasOtherOptions) { %>
+                        <div id="<%= q.name %>-other-container" class="other-options-container"></div>
+                        <button type="button" class="btn-secondary add-other-option" data-question="<%= q.name %>"><i
+                            class="fa-solid fa-plus"></i> Add Other</button>
+                        <% } %>
+                          <div
+                            style="margin-top:15px; font-size: 0.8rem; color: var(--accent-warning); text-align: center;">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Independent probability per option
+                          </div>
+
+                          <% } else if (q.type==="Dropdown" ) { %>
+                            <ul class="answer-options">
+                              <% q.options.forEach((option, index)=> { %>
+                                <li>
+                                  <label>
+                                    <%= option %>:
+                                  </label>
+                                  <input type="hidden" name="<%= q.name %>_answers[]" value="<%= option %>">
+                                  <div class="percent-input-wrapper">
+                                    <input type="number" data-order="<% index %>"
+                                      data-target-name="<%= q.name %>_chances[]" value="0" min="0" max="100" required>
+                                  </div>
+                                  <input type="hidden" name="<%= q.name %>_chances[]" value="0" min="0" max="100"
+                                    required>
+                                  <div class="calc-display">0.00</div>
+                                </li>
+                                <% }) %>
+                            </ul>
+                            <div class="chance-total" data-question="<%= q.name %>">
+                              <div class="status-dot"></div> <span class="val">Total: 0%</span>
+                            </div>
+
+                            <% } else if (q.type==="Linear Scale" ) { %>
+                              <ul class="answer-options">
+                                <% q.options.forEach((option, index)=> { %>
+                                  <li>
+                                    <label for="<%= q.name + '_opt_' + index %>">
+                                      <%= option %>
+                                    </label>
+                                    <input type="hidden" name="<%= q.name + '_answers[]' %>" value="<%= option %>">
+                                    <div class="percent-input-wrapper">
+                                      <input type="number" data-order="<% index %>"
+                                        data-target-name="<%= q.name %>_chances[]" value="0" min="0" max="100" required>
+                                    </div>
+                                    <input type="hidden" name="<%= q.name %>_chances[]" value="0" min="0" max="100"
+                                      required>
+                                    <div class="calc-display">0.00</div>
+                                  </li>
+                                  <% }) %>
+                              </ul>
+                              <div class="chance-total" data-question="<%= q.name %>">
+                                <div class="status-dot"></div> <span class="val">Total: 0%</span>
+                              </div>
+                              <% } %>
+        </div>
         <% }) %>
-      </ul>
-      <% if (q.hasOtherOptions) { %>
-      <div id="<%= q.name %>-other-container" class="other-options-container">
-        <!-- Other options will be added here dynamically -->
-      </div>
-      <button type="button" class="add-other-option" data-question="<%= q.name %>">
-        + Add Other Option
-      </button>
-      <% } %>
-      <div class="chance-total" data-question="<%= q.name %>">Total: 0%</div>
 
-      <% } else if (q.type === "Checkboxes") { %>
-      <input type="hidden" name="<%= q.name + '_isMultipleChoice[]' %>" value="true">
-      <ul class="answer-options">
-        <% q.options.forEach((option, index) => { %>
-        <li>
-          <label><%= option %></label>
-          <input type="hidden" name="<%= q.name %>_answers[]" value="<%= option %>">
-          <input type="number" data-order="<% index %>" data-target-name="<%= q.name %>_chances[]" value="100" min="0" max="100" placeholder="% chance" required>
-          <input type="hidden" name="<%= q.name %>_chances[]" value="100" min="0" max="100" required>
-          <p>100.00</p>
-        </li>
-        <% }) %>
-      </ul>
-      <% if (q.hasOtherOptions) { %>
-      <div id="<%= q.name %>-other-container" class="other-options-container">
-        <!-- Other options will be added here dynamically -->
-      </div>
-      <button type="button" class="add-other-option" data-question="<%= q.name %>">+ Add Other Option</button>
-      <% } %>
-      <div class="chance-info">Note: Each option has its own independent chance to be selected</div>
+          <!-- Footer Form Action -->
+          <div class="glass-panel"
+            style="display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; padding: 30px;">
+            <div class="input-group" style="flex: 0 0 auto;">
+              <label style="margin-bottom: 8px; display: block; white-space: nowrap;">Response Count</label>
+              <input type="number" name="respondCount" value="1" min="1"
+                style="text-align: center; font-weight: 700; height: 54px; font-size: 1.2rem; border-color: rgba(255,255,255,0.15); width: 120px;">
+            </div>
+            <button type="submit" class="submit-btn" style="flex: 1; height: 54px;">
+              <i class="fa-solid fa-rocket"></i> Save Probabilities & Generate Preview
+            </button>
+          </div>
+    </form>
+  </div>
 
-      <% } else if (q.type === "Dropdown") { %>
-      <div>
-        <ul class="answer-options">
-          <% q.options.forEach((option, index) => { %>
-          <li>
-            <label><%= option %>:</label>
-            <input type="hidden" name="<%= q.name %>_answers[]" value="<%= option %>">
-            <input type="number" data-order="<% index %>" data-target-name="<%= q.name %>_chances[]" value="0" min="0" max="100" placeholder="% chance" required>
-            <input type="hidden" name="<%= q.name %>_chances[]" value="0" min="0" max="100" required>
-            <p>0.00</p>
-          </li>
-          <% }) %>
+  <!-- MODAL -->
+  <div id="resultModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2 style="color: var(--primary); margin-bottom: 10px;"><i class="fa-solid fa-chart-pie"></i> Response Preview
+      </h2>
+      <p style="color: #888; margin-bottom: 20px;">Distribution based on configured weights.</p>
+
+      <div id="modalStats">
+        <div class="chart-grid" id="chartGrid"></div>
+      </div>
+
+      <hr style="border-color: #333; margin: 30px 0;">
+
+      <div id="modalExecution">
+        <h3 style="color: var(--secondary); margin-bottom: 10px;">Generated URLs (<span id="urlCount">0</span>)</h3>
+
+        <form id="executeForm" action="/execute-links" method="POST">
+          <div id="hiddenUrlInputs"></div>
+          <button type="submit" class="submit-btn submit-btn-full"
+            style="background: var(--secondary); box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);">
+            <i class="fa-solid fa-play"></i> Execute Links
+          </button>
+        </form>
+
+        <ul id="urlListPreview"
+          style="max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px; margin-top: 20px; background: #000; padding: 15px; border-radius: 12px; color: var(--accent-success); list-style: none;">
         </ul>
       </div>
-      <% } else if (q.type === "Linear Scale") { %>
-      <ul class="answer-options">
-        <% q.options.forEach((option, index) => { %>
-        <li>
-          <label for="<%= q.name + '_opt_' + index %>"><%= option %></label>
-          <input type="hidden" name="<%= q.name + '_answers[]' %>" value="<%= option %>">
-          <input type="number" data-order="<% index %>" data-target-name="<%= q.name %>_chances[]" value="0" min="0" max="100" placeholder="% chance" required>
-          <input type="hidden" name="<%= q.name %>_chances[]" value="0" min="0" max="100" required>
-          <p>0.00</p>
-        </li>
-        <% }) %>
-      </ul>
-      <div class="chance-total" data-question="<%= q.name %>">Total: 0%</div>
-      <% } %>
     </div>
-    <hr>
-    <% }) %>
-    <input type="number" name="respondCount" value="1">
-    <button type="submit">Save Probabilities</button>
-  </form>
+  </div>
+
+  <!-- TUTORIAL MODAL -->
+  <div id="tutorialModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeTutorial()">&times;</span>
+      <h2 style="color: var(--primary); margin-bottom: 15px;">
+        <i class="fa-solid fa-book-open" style="color: var(--secondary)"></i> Tutorial Cara Salin Link
+      </h2>
+      <div class="tutorial-body" style="color: #ccc; line-height: 1.6;">
+        <p>Tutorial content will be added here soon...</p>
+        <!-- User will provide actual content later -->
+      </div>
+    </div>
+  </div>
 
   <script>
+    // --- LOGIC: INPUT CALCULATION ---
     let allQuestions = document.querySelectorAll('.question-container')
     allQuestions.forEach(el => el.querySelectorAll('input[data-target-name]').forEach(input => {
-      input.addEventListener('change', function() {
+      input.addEventListener('input', function () { // Changed to 'input' for real-time updates
         let allInputs = this.closest('.question-container').querySelectorAll('input[data-target-name]')
         handleInputChange(this, allInputs);
       });
     }));
 
     function handleInputChange(input, allInputs) {
-      let container = input.closest('li');
+      let parentLi = input.closest('li');
       const totalInputs = Array.from(allInputs).length;
-      const total = Array.from(allInputs).reduce((sum, input) => sum + parseFloat(input.value) ?? 0, 0);
-      allInputs.forEach((input) => {
-        let container = input.closest('li')
-        let chanceText = container.querySelector("p")
-        let chance = (parseFloat(input.value).toFixed(2) / total * 100).toFixed(2)
-        container.querySelector(`[name="${input.getAttribute('data-target-name')}"]`).value = chance;
-		console.log(container.querySelector(`[name="${input.getAttribute('data-target-name')}"]`))
-        chanceText.textContent = `${chance}`;
-      });
-    }
-  </script>
+      const total = Array.from(allInputs).reduce((sum, inp) => sum + (parseFloat(inp.value) || 0), 0);
 
-  <script>
-	document.querySelectorAll('.add-option').forEach(button => {
-      button.addEventListener('click', function() {
+      allInputs.forEach((inp) => {
+        let container = inp.closest('li');
+        let displayDiv = container.querySelector(".calc-display");
+        let rawVal = parseFloat(inp.value) || 0;
+        let chance = total === 0 ? 0 : ((rawVal / total) * 100).toFixed(2);
+
+        let hiddenTarget = container.querySelector(`[name="${inp.getAttribute('data-target-name')}"]`);
+        if (hiddenTarget) hiddenTarget.value = chance;
+
+        if (displayDiv) displayDiv.textContent = `${chance}`;
+      });
+      updateChanceTotals();
+    }
+
+    // --- LOGIC: ADD OPTIONS ---
+    document.querySelectorAll('.add-option').forEach(button => {
+      button.addEventListener('click', function () {
         const questionName = this.getAttribute('data-question');
         const questionContainer = this.closest('.question-container');
         const container = questionContainer.querySelector(`.answer-options`);
-        const optionsCount = container.querySelectorAll('.other-option').length;
-        // Create new other option
-        const otherOptionId = Date.now(); // Unique ID for this option
+
         const newOption = document.createElement('li');
         newOption.className = 'other-option';
         newOption.innerHTML = `
-        <input type="text" name="${questionName}_answers[]" placeholder="Other answer text" required>
-        <input type="number" data-target-name="${questionName}_chances[]" value="0" min="0" max="100" placeholder="% chance" required>
+        <textarea name="${questionName}_answers[]" rows="2" placeholder="Variant answer..." required style="flex:1"></textarea>
+        <div class="percent-input-wrapper">
+             <input type="number" data-target-name="${questionName}_chances[]" value="0" min="0" max="100" required>
+        </div>
         <input type="hidden" data-other-option name="${questionName}_chances[]" value="0" min="0" max="100" required>
-        <p>0.00</p>
-        <button type="button" class="remove-other-option" data-question="${questionName}">×</button>
+        <div class="calc-display">0.00</div>
+        <button type="button" class="btn-icon remove-option btn-remove" data-question="${questionName}"><i class="fa-solid fa-xmark"></i></button>
       `;
         container.appendChild(newOption);
+
         let allInputs = container.querySelectorAll('input[data-target-name]');
-        newOption.querySelector('input[data-target-name]').addEventListener('change', function(e) {
+        newOption.querySelector('input[data-target-name]').addEventListener('input', function (e) {
           handleInputChange(this, allInputs);
         });
 
-        // Add event listener to the new remove button
-        newOption.querySelector('.remove-other-option').addEventListener('click', function() {
+        newOption.querySelector('.remove-option').addEventListener('click', function () {
           this.parentElement.remove();
+          let remainingInputs = container.querySelectorAll('input[data-target-name]');
+          if (remainingInputs.length > 0) handleInputChange(remainingInputs[0], remainingInputs);
           updateChanceTotals();
         });
-
-        // Update chance totals when new other option is added
         updateChanceTotals();
       });
     });
-  </script>
 
-  <script>
-    // Add other option functionality
+    // --- LOGIC: ADD "OTHER" OPTIONS ---
     document.querySelectorAll('.add-other-option').forEach(button => {
-      button.addEventListener('click', function() {
+      button.addEventListener('click', function () {
         const questionName = this.getAttribute('data-question');
         const questionContainer = this.closest('.question-container');
-        const container = questionContainer.querySelector(`.answer-options`);
-        const optionsCount = container.querySelectorAll('.other-option').length;
-        // Create new other option
-        const otherOptionId = Date.now(); // Unique ID for this option
-        const newOption = document.createElement('li');
+        const listContainer = questionContainer.querySelector(`.answer-options`);
+        const otherContainer = document.getElementById(`${questionName}-other-container`);
+
+        const newOption = document.createElement('div');
         newOption.className = 'other-option';
         newOption.innerHTML = `
-        <input type="text" name="${questionName}_answers[]" placeholder="Other answer text" required>
-        <input type="hidden" data-answer-other-option name="${questionName}.other_option_response[]" placeholder="Other answer text" required>
+        <i class="fa-solid fa-pen" style="color:#666"></i>
+        <input type="text" name="${questionName}_answers[]" placeholder="Other Answer..." required style="flex:1">
+        <input type="hidden" data-answer-other-option name="${questionName}.other_option_response[]" required>
         <input type="hidden" name="${questionName}.is_other_option[]" value="__other_option__" required>
-        <input type="number" data-target-name="${questionName}_chances[]" value="0" min="0" max="100" placeholder="% chance" required>
+        
+        <div class="percent-input-wrapper">
+             <input type="number" data-target-name="${questionName}_chances[]" value="0" min="0" max="100" required>
+        </div>
         <input type="hidden" data-other-option name="${questionName}_chances[]" value="0" min="0" max="100" required>
-        <p>0.00</p>
-        <button type="button" class="remove-other-option" data-question="${questionName}">×</button>
+        <div class="calc-display">0.00</div>
+        <button type="button" class="btn-icon remove-option btn-remove" data-question="${questionName}"><i class="fa-solid fa-xmark"></i></button>
       `;
-	  	container.appendChild(newOption);
-		newOption.querySelector(`input[name="${questionName}_answers[]"]`).addEventListener('change', function(e) {
-		  newOption.querySelector(`input[data-answer-other-option]`).value = this.value;
-		  console.log(newOption.querySelector(`input[data-answer-other-option]`))
-		});
-		let allInputs = container.querySelectorAll('input[data-target-name]');
-        newOption.querySelector('input[data-target-name]').addEventListener('change', function(e) {
-          handleInputChange(this, allInputs);
+        otherContainer.appendChild(newOption);
+
+        newOption.querySelector(`input[name="${questionName}_answers[]"]`).addEventListener('input', function (e) {
+          newOption.querySelector(`input[data-answer-other-option]`).value = this.value;
         });
 
-        // Add event listener to the new remove button
-        newOption.querySelector('.remove-other-option').addEventListener('click', function() {
+        let currentAllInputs = [
+          ...Array.from(listContainer.querySelectorAll('input[data-target-name]')),
+          ...Array.from(otherContainer.querySelectorAll('input[data-target-name]'))
+        ];
+        newOption.querySelector('input[data-target-name]').addEventListener('input', function (e) {
+          let updatedInputs = [
+            ...Array.from(listContainer.querySelectorAll('input[data-target-name]')),
+            ...Array.from(otherContainer.querySelectorAll('input[data-target-name]'))
+          ];
+          handleInputChange(this, updatedInputs);
+        });
+
+        newOption.querySelector('.remove-option').addEventListener('click', function () {
           this.parentElement.remove();
           updateChanceTotals();
         });
-
-        // Update chance totals when new other option is added
         updateChanceTotals();
       });
     });
 
-    // Remove other option functionality
-    document.querySelectorAll('.remove-other-option').forEach(button => {
-      button.addEventListener('click', function() {
-        const questionName = this.getAttribute('data-question');
-        const container = document.getElementById(`${questionName}-other-container`);
-        const addButton = container.parentElement.querySelector('.add-other-option');
-
-        // Clear inputs before hiding
-        container.querySelector('input[type="text"]').value = '';
-        container.querySelector('input[type="number"]').value = '';
-
-        container.style.display = 'none';
-        addButton.style.display = 'block';
-
-        // Update chance totals when other option is removed
-        updateChanceTotals();
-      });
-    });
-
-    // Initialize remove option buttons
     document.querySelectorAll('.remove-option').forEach(button => {
-      button.addEventListener('click', function() {
+      button.addEventListener('click', function () {
         this.parentElement.remove();
         updateChanceTotals();
       });
     });
 
-    // Calculate and display total chances for each question
+    // --- LOGIC: TOTAL UPDATE ---
     function updateChanceTotals() {
       document.querySelectorAll('.chance-total').forEach(totalElement => {
         const questionName = totalElement.getAttribute('data-question');
-        let total = 0;
+        const qContainer = totalElement.closest('.question-container');
+        const chanceInputs = qContainer.querySelectorAll(`input[type="hidden"][name="${questionName}_chances[]"]`);
 
-        // For radio/linear scale/dropdown questions
-        document.querySelectorAll(`input[name="${questionName}_chances[]"]`).forEach(input => {
-          total += Number(input.value) || 0;
+        let calculatedSum = 0;
+        chanceInputs.forEach(i => calculatedSum += parseFloat(i.value) || 0);
+        calculatedSum = Math.round(calculatedSum * 100) / 100;
+
+        const valSpan = totalElement.querySelector('.val');
+        const dot = totalElement.querySelector('.status-dot');
+        valSpan.textContent = `Total: ${calculatedSum}%`;
+
+        // Styling based on validity
+        totalElement.className = 'chance-total'; // Reset
+        valSpan.className = 'val';
+        dot.className = 'status-dot';
+
+        if (calculatedSum !== 100) {
+          totalElement.classList.add('border-danger');
+          valSpan.classList.add('text-danger');
+          dot.style.background = 'var(--accent-danger)';
+          dot.style.boxShadow = '0 0 8px var(--accent-danger)';
+        } else {
+          totalElement.classList.add('border-success');
+          valSpan.classList.add('text-success');
+          dot.style.background = 'var(--accent-success)';
+          dot.style.boxShadow = '0 0 8px var(--accent-success)';
+        }
+      });
+    }
+
+    // --- FORM SUBMIT ---
+    document.getElementById('probabilityForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const submitBtn = this.querySelector('.submit-btn');
+      const originalText = submitBtn.innerHTML;
+      submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...';
+      submitBtn.style.opacity = '0.7';
+
+      const formData = new FormData(this);
+      const data = {};
+      formData.forEach((value, key) => {
+        if (key.endsWith('[]')) {
+          if (!data[key]) data[key] = [];
+          data[key].push(value);
+        } else {
+          data[key] = value;
+        }
+      });
+
+      try {
+        const response = await fetch('/save-probabilities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
         });
 
-        totalElement.textContent = `Total: ${total}%`;
+        const result = await response.json();
+        showModal(result);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        submitBtn.innerHTML = originalText;
+        submitBtn.style.opacity = '1';
+      }
+    });
 
-        // Highlight if total is not 100%
-        if (total !== 100) {
-          totalElement.style.color = 'red';
-          totalElement.title = 'Total should be 100%';
-        } else {
-          totalElement.style.color = 'green';
-          totalElement.title = '';
-        }
+    // --- CHART MODAL ---
+    let charts = [];
+    function showModal(data) {
+      const modal = document.getElementById('resultModal');
+      const chartGrid = document.getElementById('chartGrid');
+      const urlList = document.getElementById('urlListPreview');
+      const urlCount = document.getElementById('urlCount');
+      const hiddenInputs = document.getElementById('hiddenUrlInputs');
+
+      let currentUrls = data.urlsToSend;
+      urlCount.textContent = currentUrls.length;
+
+      chartGrid.innerHTML = '';
+      urlList.innerHTML = '';
+      hiddenInputs.innerHTML = '';
+      charts.forEach(chart => chart.destroy());
+      charts = [];
+
+      currentUrls.forEach(url => {
+        const li = document.createElement('li');
+        li.textContent = '> ' + url;
+        urlList.appendChild(li);
+
+        const input = document.createElement('input');
+        input.type = 'hidden'; input.name = 'urls[]'; input.value = url;
+        hiddenInputs.appendChild(input);
       });
+
+      // Neon Colors for Charts
+      const toonColors = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
+
+      Object.entries(data.stats).forEach(([key, stat]) => {
+        if (key.startsWith('_')) return;
+        const container = document.createElement('div');
+        container.className = 'chart-card';
+        const canvas = document.createElement('canvas');
+        container.appendChild(canvas);
+        chartGrid.appendChild(container);
+
+        const rawLabels = Object.keys(stat).filter(k => !k.startsWith('_'));
+        const total = rawLabels.reduce((sum, l) => sum + stat[l], 0);
+        const labels = rawLabels.map(l => {
+          const count = stat[l];
+          const percent = ((count / total) * 100).toFixed(1);
+          return `${l} (${percent}%)`;
+        });
+        const values = rawLabels.map(l => stat[l]);
+
+        Chart.defaults.color = '#a1a1aa';
+        Chart.defaults.borderColor = '#333';
+        Chart.defaults.font.family = "'Space Grotesk', sans-serif";
+
+        const chart = new Chart(canvas, {
+          type: 'pie',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: stat._questionText || key,
+              data: values,
+              backgroundColor: toonColors,
+              borderWidth: 0,
+              hoverOffset: 10
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, pointStyle: 'circle' } },
+              title: { display: true, text: stat._questionText || key, font: { size: 14, weight: 'bold' }, padding: { bottom: 20 } }
+            }
+          }
+        });
+        charts.push(chart);
+      });
+
+      modal.style.display = "flex";
     }
 
+    document.querySelector('.close').onclick = function () {
+      document.getElementById('resultModal').style.display = "none";
+    }
 
+    window.onclick = function (event) {
+      const modal = document.getElementById('resultModal');
+      if (event.target == modal) {
+        modal.style.display = "none";
+      }
+    }
 
-    // function redistributeValues() {
-    //   const n = allInputs.length;
-    //   if (n === 0) return;
-    //   const share = (100 / n).toFixed(2);
-    //   for (const input of allInputs) {
-    //     input.value = share;
-    //   }
-    // }
-
-    // Add change listeners to all chance inputs
-    document.querySelectorAll('input[type="number"][placeholder*="chance"]').forEach(input => {
-      input.addEventListener('change', updateChanceTotals);
-    });
-
-    // Form validation
-    document.getElementById('probabilityForm').addEventListener('submit', function(e) {
-      let isValid = true;
-
-      // Check all chance totals are 100% where needed
-      document.querySelectorAll('.chance-total').forEach(totalElement => {
-        const totalText = totalElement.textContent;
-        const total = parseInt(totalText.match(/\d+/)[0]);
-
-        if (total !== 100) {
-          isValid = false;
-          totalElement.style.border = '1px solid red';
-        } else {
-          totalElement.style.border = 'none';
-        }
-      });
-
-      // if (!isValid) {
-      //   e.preventDefault();
-      //   alert('Please make sure all probability totals equal 100%');
-      // }
-    });
-
-    // Initial update of chance totals
+    // Initial run
     updateChanceTotals();
+
+    // --- LOGIC: QUICK URL CHANGE ---
+    function changeForm() {
+      const input = document.getElementById('quickUrlInput');
+      const url = input.value.trim();
+      if (!url) return;
+
+      // Basic validation
+      if (!url.includes('docs.google.com/forms')) {
+        alert('Please enter a valid Google Forms URL');
+        return;
+      }
+
+      // Show global loading if possible or just redirect
+      const submitBtn = document.querySelector('.submit-btn');
+      if (submitBtn) {
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Redirecting...';
+        submitBtn.style.opacity = '0.5';
+      }
+
+      window.location.href = '/scrape?url=' + encodeURIComponent(url);
+    }
+
+    // Support Enter key
+    document.getElementById('quickUrlInput').addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') {
+        changeForm();
+      }
+    });
+
+    // --- TUTORIAL MODAL LOGIC ---
+    function openTutorial() {
+      document.getElementById('tutorialModal').style.display = 'flex';
+    }
+
+    function closeTutorial() {
+      document.getElementById('tutorialModal').style.display = 'none';
+    }
+
+    // Close on outside click
+    window.addEventListener('click', function (e) {
+      const tutorialModal = document.getElementById('tutorialModal');
+      const resultModal = document.getElementById('resultModal');
+      if (e.target === tutorialModal) closeTutorial();
+      if (e.target === resultModal) resultModal.style.display = 'none';
+    });
   </script>
-
-  <style>
-    .question-container {
-      margin-bottom: 20px;
-      padding: 15px;
-      background-color: #f9f9f9;
-      border-radius: 5px;
-    }
-
-    .answer-options {
-      list-style: none;
-      padding-left: 0;
-    }
-
-    .answer-options li,
-    .option-input {
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .chance-total {
-      display: none;
-      font-weight: bold;
-      margin: 10px 0;
-      padding: 5px;
-    }
-
-    .remove-option {
-      background: #ff4444;
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .remove-option:hover {
-      background: #cc0000;
-    }
-
-    .chance-info {
-      color: #666;
-      font-style: italic;
-      font-size: 0.9em;
-    }
-
-    .dropdown-chances {
-      margin-top: 10px;
-    }
-
-    .dropdown-chances ul {
-      list-style: none;
-      padding-left: 0;
-    }
-
-    .dropdown-chances li {
-      margin-bottom: 5px;
-    }
-
-    .other-option-container {
-      margin-top: 10px;
-      padding: 10px;
-      background-color: #f5f5f5;
-      border-radius: 4px;
-    }
-
-    .other-option {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .add-other-option {
-      background: none;
-      border: 1px dashed #666;
-      color: #666;
-      padding: 5px 10px;
-      border-radius: 4px;
-      cursor: pointer;
-      margin-top: 10px;
-    }
-
-    .add-other-option:hover {
-      background-color: #f0f0f0;
-    }
-
-    .remove-other-option {
-      background: #ff4444;
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .remove-other-option:hover {
-      background: #cc0000;
-    }
-  </style>
 </body>
 
 </html>

@@ -11,7 +11,7 @@ const PORT = 3000;
 console.log('PUBLIC DIR:', path.join(__dirname, 'public'));
 
 app.set('view engine', 'ejs');
-app.use(express.static(path.join(__dirname, 'public'))); 
+app.use(express.static(path.join(__dirname, 'public')));
 
 const RESPOND_COUNT_HARD_LIMIT = 999;
 const HARD_CODED_NAMEFAKER = true;
@@ -47,7 +47,7 @@ app.get('/', (req, res) => {
 });
 
 
-app.post('/save-probabilities', express.urlencoded({ extended: true }), (req, res) => {
+app.post('/save-probabilities', express.json(), express.urlencoded({ extended: true }), (req, res) => {
     const formData = req.body;
     let respondCount = parseInt(req.body.respondCount) || 1;
     if (respondCount > RESPOND_COUNT_HARD_LIMIT) { respondCount = RESPOND_COUNT_HARD_LIMIT; }
@@ -57,6 +57,9 @@ app.post('/save-probabilities', express.urlencoded({ extended: true }), (req, re
     let nameFakerEntry, cityFakerEntry, genderFakerEntry, emailFakerEntry;
     let newData = [];
     let urlsToSend = [];
+
+    // Summary data for charts
+    let stats = {}; // { questionName: { option: count } }
 
     for (const entry of data) {
         if (formData['name-faker'] && entry.name == formData['name-faker']) {
@@ -70,6 +73,10 @@ app.post('/save-probabilities', express.urlencoded({ extended: true }), (req, re
         } else {
             newData.push(entry);
         }
+        stats[entry.name] = {
+            _questionText: formData[`${entry.name}_text`] || entry.name,
+            _type: entry.checkbox ? 'Checkboxes' : 'Single Choice'
+        };
     }
 
     for (let i = 0; i < respondCount; i++) {
@@ -80,35 +87,55 @@ app.post('/save-probabilities', express.urlencoded({ extended: true }), (req, re
         if (Math.random() < 0.7) {
             fakerName = fakerName.toLowerCase();
         }
-        const formUrl = decodeToGoogleFormUrl(baseUrl, newData);
+
+        // Track selections for stats
+        const selections = [];
+        const formUrl = decodeToGoogleFormUrl(baseUrl, newData, selections);
+
+        // Populate stats for the standard fields
+        selections.forEach(sel => {
+            if (!stats[sel.name]) stats[sel.name] = {};
+            sel.values.forEach(val => {
+                stats[sel.name][val] = (stats[sel.name][val] || 0) + 1;
+            });
+        });
+
         const urlParams = new URLSearchParams();
         if (formData["name-faker"]) {
             urlParams.append(nameFakerEntry.name, fakerName);
+            stats[nameFakerEntry.name][fakerName] = (stats[nameFakerEntry.name][fakerName] || 0) + 1;
         }
         if (formData["gender-faker"]) {
             urlParams.append(genderFakerEntry.name, fakerGender);
+            stats[genderFakerEntry.name][fakerGender] = (stats[genderFakerEntry.name][fakerGender] || 0) + 1;
         }
         if (formData["city-faker"]) {
             urlParams.append(cityFakerEntry.name, fakerCity);
+            stats[cityFakerEntry.name][fakerCity] = (stats[cityFakerEntry.name][fakerCity] || 0) + 1;
         }
         if (formData["email-faker"]) {
             urlParams.append(emailFakerEntry.name, fakerEmail);
+            stats[emailFakerEntry.name][fakerEmail] = (stats[emailFakerEntry.name][fakerEmail] || 0) + 1;
         }
         const newForm = `${formUrl}&${urlParams.toString()}`;
         urlsToSend.push(newForm);
     }
 
-    res.render('buffer', { urlsToSend });
+    res.json({ urlsToSend, stats });
 });
 
-app.post('/execute-links', express.urlencoded({ extended: true }), (req, res) => {
+app.post('/execute-links', express.json(), express.urlencoded({ extended: true }), (req, res) => {
     let urlsuccess = 0;
     let urlLinkStatus = [];
     let delay = 1000;
-    const urlsToSend = req.body.urls;
+
+    // Handle both 'urls' and 'urls[]' and ensure it's an array
+    let urlsVal = req.body.urls || req.body['urls[]'];
+    if (!urlsVal) return res.status(400).json({ error: 'No URLs provided' });
+    const urlsToSend = Array.isArray(urlsVal) ? urlsVal : [urlsVal];
     let promises = urlsToSend.map((u) => {
         return new Promise((resolve) => {
-            setTimeout(function() {
+            setTimeout(function () {
                 https.get(u, (response) => {
                     urlLinkStatus.push({ u, s: response.statusCode });
                     if (response.statusCode == 200) {
@@ -130,7 +157,7 @@ app.listen(PORT, () => {
     console.log(`Example app listening on port ${PORT}`);
 });
 
-function decodeToGoogleFormUrl(baseUrl, data) {
+function decodeToGoogleFormUrl(baseUrl, data, selections = []) {
     baseUrl = baseUrl.replace(/viewform/, 'formResponse');
     const urlParams = new URLSearchParams();
 
@@ -146,6 +173,7 @@ function decodeToGoogleFormUrl(baseUrl, data) {
 
         if (isMultipleChoice) {
             selectedResult = selectIndependentOptions(items);
+            const selectionValues = [];
             selectedResult.forEach(option => {
                 if (hasOtherOption && option.isOtherOption) {
                     urlParams.append(name + '.other_option_response', option.option);
@@ -153,7 +181,9 @@ function decodeToGoogleFormUrl(baseUrl, data) {
                 } else {
                     urlParams.append(name, option.option);
                 }
+                selectionValues.push(option.option);
             });
+            selections.push({ name, values: selectionValues });
         } else {
             selectedResult = selectWeightedRandomItem(items);
             if (selectedResult.isOtherOption) {
@@ -162,6 +192,7 @@ function decodeToGoogleFormUrl(baseUrl, data) {
             } else {
                 urlParams.append(name, selectedResult.option);
             }
+            selections.push({ name, values: [selectedResult.option] });
         }
     }
 
@@ -172,26 +203,49 @@ function parseData(formData) {
     const remappedOutput = [];
 
     for (const [entry, value] of Object.entries(formData)) {
-        if (entry === "url" || entry === "respondCount") continue;
-        if (entry.endsWith('_answers')) {
+        if (entry.startsWith("url") || entry.startsWith("respondCount")) continue;
+
+        // Match keys like entry.123_answers or entry.123_answers[]
+        if (entry.includes('_answers')) {
             const questionId = entry.split('_')[0];
-            const multipleChoice = formData[`${questionId}_isMultipleChoice`];
-            const otherOptionResponse = formData[`${questionId}.other_option_response`];
-            const hasOtherOption = formData[`${questionId}.is_other_option`];
+            const multipleChoice = formData[`${questionId}_isMultipleChoice`] || formData[`${questionId}_isMultipleChoice[]`];
+            const otherOptionResponse = formData[`${questionId}.other_option_response`] || formData[`${questionId}.other_option_response[]`];
+            const hasOtherOption = formData[`${questionId}.is_other_option`] || formData[`${questionId}.is_other_option[]`];
+            const chances = formData[`${questionId}_chances`] || formData[`${questionId}_chances[]`];
             const items = [];
-            value.forEach((answer, i) => {
-                let isOtherOption = otherOptionResponse == answer;
-                const newAnswer = {
-                    option: answer,
-                    chance: formData[`${questionId}_chances`][i] || 0,
-                    isOtherOption
-                };
-                items.push(newAnswer);
+
+            const answers = Array.isArray(value) ? value : [value];
+            const chancesArray = Array.isArray(chances) ? JSON.parse(JSON.stringify(chances)) : [chances]; // clone to be safe
+
+            answers.forEach((answer, i) => {
+                const answerStr = String(answer);
+                const lines = answerStr.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+
+                if (lines.length > 1) {
+                    const baseChance = parseFloat(Array.isArray(chancesArray) ? chancesArray[i] : chancesArray) || 0;
+                    const distributedChance = baseChance / lines.length;
+                    lines.forEach(line => {
+                        items.push({
+                            option: line,
+                            chance: distributedChance,
+                            isOtherOption: false
+                        });
+                    });
+                } else {
+                    let isOtherOption = (otherOptionResponse == answer);
+                    const chance = Array.isArray(chancesArray) ? chancesArray[i] : chancesArray;
+                    const newAnswer = {
+                        option: answer,
+                        chance: chance || 0,
+                        isOtherOption
+                    };
+                    items.push(newAnswer);
+                }
             });
-            const isMultipleChoice = multipleChoice ? multipleChoice[0] : false;
+            const isMultipleChoice = multipleChoice ? (Array.isArray(multipleChoice) ? multipleChoice[0] : multipleChoice) : false;
             remappedOutput.push({
                 name: questionId,
-                checkbox: isMultipleChoice,
+                checkbox: isMultipleChoice === 'true' || isMultipleChoice === true,
                 hasOtherOption: hasOtherOption ?? false,
                 items
             });
@@ -229,18 +283,45 @@ function selectWeightedRandomItem(optionsWithWeights) {
     return optionsWithWeights[optionsWithWeights.length - 1];
 }
 
+let browserInstance = null;
+
+async function getBrowser() {
+    if (!browserInstance) {
+        browserInstance = await puppeteer.launch({
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+    }
+    return browserInstance;
+}
+
 async function scrape(url) {
+    let browser;
+    let page;
     try {
-        const browser = await puppeteer.launch({ headless: true });
-        const page = await browser.newPage();
-        await page.goto(url, { waitUntil: 'networkidle2' });
+        console.log(`[SCRAPER] Scraping URL: ${url}`);
+        browser = await getBrowser();
+        page = await browser.newPage();
+
+        // Wait for network to be idle
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+
+        const pageTitle = await page.title();
+        console.log(`[SCRAPER] Page Title: ${pageTitle}`);
+
+        if (pageTitle.toLowerCase().includes('sign in') || pageTitle.toLowerCase().includes('login')) {
+            console.error('[SCRAPER] Login required or restricted form.');
+            return { error: 'Login required', questions: [] };
+        }
         const formData = await page.evaluate(() => {
             const questions = [];
+            const typeCounts = {};
             const questionEls = document.querySelectorAll('.Qr7Oae');
             let externalInputIndex = 0;
+
             questionEls.forEach((el, i) => {
                 const questionTextEl = el.querySelector('.M7eMe');
-                const question = questionTextEl ? questionTextEl.innerText.trim() : 'Untitled question';
+                const questionTitle = questionTextEl ? questionTextEl.innerText.trim() : 'Untitled question';
 
                 let name = null;
                 const inputEl = el.querySelector('input[name^="entry."], textarea[name^="entry."]');
@@ -263,12 +344,15 @@ async function scrape(url) {
                 else if (el.querySelector('.eBFwI')) type = 'Checkboxes';
                 else if (el.querySelector('textarea')) type = 'Paragraph';
                 else if (el.querySelector('input[type="text"]')) type = 'Short Answer';
+
                 if (type == "Unknown") return;
+
+                typeCounts[type] = (typeCounts[type] || 0) + 1;
 
                 if (name == null && type != "Unknown") {
                     name = externalInputIndex;
                     externalInputIndex++;
-                } else {
+                } else if (name) {
                     name = name.split('_')[0];
                 }
 
@@ -291,74 +375,64 @@ async function scrape(url) {
                     el.querySelectorAll('.eBFwI:not(.RVLOe)').forEach(opt => {
                         const text = opt.innerText.trim();
                         if (text) options.push(text);
-                        if (el.querySelector('.RVLOe')) {
-                            hasOtherOptions = true;
-                        }
                     });
+                    if (el.querySelector('.RVLOe')) {
+                        hasOtherOptions = true;
+                    }
                 } else if (type === "Linear Scale") {
                     const numbersInEl = Array.from(el.querySelectorAll('.Zki2Ve')).map(e => e.innerText.trim());
-                    const numbers = numbersInEl.length > 0
-                        ? numbersInEl
-                        : Array.from(document.querySelectorAll('.Zki2Ve')).map(e => e.innerText.trim());
-
-                    if (numbers.length > 1) {
-                        const min = parseInt(numbers[0]);
-                        const max = parseInt(numbers[numbers.length - 1]);
-                        range = [];
+                    if (numbersInEl.length > 1) {
+                        const min = parseInt(numbersInEl[0]);
+                        const max = parseInt(numbersInEl[numbersInEl.length - 1]);
                         for (let i = min; i <= max; i++) {
-                            range.push(i);
+                            options.push(i);
                         }
-                        options.push(...range);
                     } else {
                         options.push("Scale unavailable");
                     }
                 } else if (type === "Rating") {
                     type = "Linear Scale";
-                    el.querySelector('.vp2Xfc').querySelectorAll('.UNQpic').forEach((r) => {
+                    el.querySelectorAll('.UNQpic').forEach((r) => {
                         options.push(r.textContent.trim());
                     });
                 } else if (type === "Multiple Choice Grid") {
-                    const options = [];
-                    const row = el.querySelectorAll('.lLfZXe.fnxRtf.EzyPc');
+                    const gridOptions = [];
                     el.querySelector('.ssX1Bd.KZt9Tc').querySelectorAll('.OIC90c').forEach((c) => {
-                        options.push(c.textContent);
+                        gridOptions.push(c.textContent);
                     });
-                    row.forEach((r, i) => {
-                        let name = r.querySelector("input[name^=entry]").getAttribute('name');
-                        name = name.split('_')[0];
-                        questions.push({ name, question: r.textContent, type: "Multiple Choice", options, hasOtherOptions });
-                    });
-                } else if (type === "Checkbox Grid") {
-                    el.querySelector('.ssX1Bd.KZt9Tc').querySelectorAll('.V4d7Ke.OIC90c').forEach((opt) => {
-                        options.push(opt.textContent.trim());
-                    });
-
-                    el.querySelectorAll('.EzyPc.mxSrOe').forEach((r) => {
-                        let name = r.querySelector("input[name^=entry]").getAttribute('name');
-                        name = name.split('_')[0];
-                        questions.push({ name, question, type: "Checkbox", options, hasOtherOptions });
+                    el.querySelectorAll('.lLfZXe.fnxRtf.EzyPc').forEach((r) => {
+                        let rName = r.querySelector("input[name^=entry]").getAttribute('name');
+                        rName = rName.split('_')[0];
+                        questions.push({ name: rName, question: r.textContent, type: "Multiple Choice", options: gridOptions, hasOtherOptions: false });
                     });
                 }
 
                 if (type != "Multiple Choice Grid" && type != "Checkbox Grid") {
-                    questions.push({ name, question, type, options, hasOtherOptions });
+                    questions.push({ name, question: questionTitle, type, options, hasOtherOptions });
                 }
             });
+
             let externalInputsName = [];
-            document.querySelectorAll('input[name^=entry]:not([name$=sentinel])').forEach((i) => { externalInputsName.push(i.name); });
+            document.querySelectorAll('input[name^=entry]:not([name$=sentinel])').forEach((i) => {
+                externalInputsName.push(i.name);
+            });
 
             questions.forEach(q => {
-                if (typeof q.name === 'number') {
+                if (typeof q.name === 'number' && externalInputsName[q.name]) {
                     q.name = externalInputsName[q.name];
                 }
             });
-            return questions;
-        });
-        await browser.close();
 
-        return { questions: formData };
+            return { questions, typeCounts };
+        });
+
+        console.log(`[SCRAPER] Found ${formData.questions.length} valid questions.`);
+        console.log(`[SCRAPER] Question type breakdown:`, formData.typeCounts);
+        await page.close(); // Close the page after scraping
+        return { questions: formData.questions };
     } catch (err) {
-        console.error(err);
-        return { error: 'Scraping failed' };
+        console.error(`[SCRAPER] Error: ${err.message}`);
+        if (page) await page.close(); // Ensure page is closed on error
+        return { error: err.message, questions: [] };
     }
 }

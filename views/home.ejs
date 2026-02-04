@@ -1,169 +1,883 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 
 <head>
-    <meta charset="UTF-8" />
-    <title>AUTOFILL</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autofill - Automate Your Surveys</title>
 
-    <!-- FONT -->
+    <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- CSS -->
-    <link rel="stylesheet" href="/css/autofill.css">
+    <style>
+        /* --- 1. CORE VARIABLES & RESET --- */
+        :root {
+            /* Palette */
+            --bg-deep: #050505;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            /* Transparan untuk glassmorphism */
+            --bg-card-hover: rgba(255, 255, 255, 0.07);
+            --text-main: #ffffff;
+            --text-muted: #a1a1aa;
 
-    <!-- Feather -->
-    <script src="https://unpkg.com/feather-icons"></script>
+            /* Neon Accents */
+            --primary: #8b5cf6;
+            /* Violet */
+            --secondary: #06b6d4;
+            /* Cyan */
+            --accent-glow: rgba(139, 92, 246, 0.5);
+
+            /* Dimensions */
+            --border-radius: 20px;
+            --max-width: 1100px;
+            --transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            outline: none;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'Space Grotesk', sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* --- 2. BACKGROUND ANIMATION (RINGAN - TANPA JS BERAT) --- */
+        .ambient-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            overflow: hidden;
+            background: #050505;
+        }
+
+        /* Orb 1 - Violet */
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.6;
+            animation: floatOrb 20s infinite ease-in-out;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: var(--primary);
+            top: -100px;
+            left: -100px;
+            animation-delay: 0s;
+        }
+
+        /* Orb 2 - Cyan */
+        .orb-2 {
+            width: 500px;
+            height: 500px;
+            background: var(--secondary);
+            bottom: -150px;
+            right: -150px;
+            animation-delay: -5s;
+            animation-direction: alternate-reverse;
+        }
+
+        /* Orb 3 - Purple Glow */
+        .orb-3 {
+            width: 300px;
+            height: 300px;
+            background: #d946ef;
+            /* Fuchsia */
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.3;
+            animation: pulseOrb 15s infinite ease-in-out;
+        }
+
+        /* Noise Texture Overlay (Agar tidak terlalu licin/flat) */
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.05;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            pointer-events: none;
+        }
+
+        @keyframes floatOrb {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            50% {
+                transform: translate(30px, 50px) scale(1.1);
+            }
+
+            100% {
+                transform: translate(0, 0) scale(1);
+            }
+        }
+
+        @keyframes pulseOrb {
+
+            0%,
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.3;
+            }
+
+            50% {
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 0.5;
+            }
+        }
+
+        /* --- 3. LAYOUT & CONTAINER --- */
+        .container {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 0 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* --- 4. GLASS COMPONENTS --- */
+        /* Efek kaca buram umum */
+        .glass-panel {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+            transition: var(--transition);
+        }
+
+        /* --- HEADER --- */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            width: 100%;
+            /* Header sedikit transparan saat scroll */
+            background: rgba(5, 5, 5, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .header-inner {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.5rem;
+            letter-spacing: -1px;
+            color: #fff;
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .logo i {
+            color: var(--secondary);
+            filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.4));
+        }
+
+        .logo span {
+            background: linear-gradient(to right, #fff, #a5b4fc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo:hover {
+            transform: scale(1.05);
+            text-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+        }
+
+        nav {
+            display: flex;
+            gap: 32px;
+        }
+
+        nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        nav a::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -4px;
+            left: 0;
+            background: var(--secondary);
+            transition: width 0.3s;
+        }
+
+        nav a:hover {
+            color: #fff;
+        }
+
+        nav a:hover::after {
+            width: 100%;
+        }
+
+        /* --- HERO SECTION --- */
+        .hero {
+            text-align: center;
+            padding: 80px 0 100px;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 5vw, 4.5rem);
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            letter-spacing: -2px;
+            background: linear-gradient(to right, #fff, #a5b4fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero h1 strong {
+            color: var(--secondary);
+            -webkit-text-fill-color: var(--secondary);
+            text-shadow: 0 0 30px rgba(6, 182, 212, 0.4);
+        }
+
+        .hero p.tagline {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 50px;
+            line-height: 1.6;
+        }
+
+        /* Input Container Styling */
+        .pill-input-container {
+            max-width: 700px;
+            margin: 0 auto;
+            position: relative;
+            padding: 8px;
+            border-radius: 100px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            transition: var(--transition);
+            box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+        }
+
+        .pill-input-container:focus-within {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
+            transform: scale(1.01);
+        }
+
+        .pill-input-container input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 1.1rem;
+            padding: 0 24px;
+            font-family: inherit;
+        }
+
+        .pill-input-container input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .pill-input-container button {
+            background: linear-gradient(135deg, var(--primary), #7c3aed);
+            color: #fff;
+            border: none;
+            padding: 16px 40px;
+            border-radius: 100px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+        }
+
+        .pill-input-container button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(124, 58, 237, 0.3);
+        }
+
+        #form-status {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #f87171;
+            height: 20px;
+            font-weight: 500;
+        }
+
+        /* --- FEATURES SECTION --- */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 100px;
+        }
+
+        .feature-card {
+            padding: 40px 30px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            background: var(--bg-card-hover);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .icon-box {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: rgba(6, 182, 212, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            font-size: 1.5rem;
+            color: var(--secondary);
+            transition: var(--transition);
+        }
+
+        .feature-card:hover .icon-box {
+            background: var(--secondary);
+            color: #000;
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+        }
+
+        .feature-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 12px;
+            color: #fff;
+        }
+
+        .feature-card p {
+            color: var(--text-muted);
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        /* --- PRICING SECTION --- */
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .section-header h2 {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+            letter-spacing: -1px;
+        }
+
+        .section-header p {
+            color: var(--secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.9rem;
+        }
+
+        .packages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 120px;
+        }
+
+        .package-card {
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .package-card:hover {
+            transform: scale(1.02);
+            border-color: var(--primary);
+        }
+
+        .package-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--primary);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 50px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .package-range {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .package-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+
+        .package-price {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            margin-bottom: 30px;
+            padding-bottom: 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .package-price b {
+            color: var(--secondary);
+            font-size: 1.8rem;
+        }
+
+        .btn-select {
+            margin-top: auto;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 16px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+
+        .btn-select:hover {
+            background: #fff;
+            color: #000;
+            border-color: #fff;
+        }
+
+        /* Highlight active card */
+        .package-card.active {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--primary);
+            box-shadow: 0 0 30px rgba(139, 92, 246, 0.15);
+        }
+
+        .package-card.active .btn-select {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .package-card.active .btn-select:hover {
+            background: #7c3aed;
+        }
+
+        /* --- FOOTER --- */
+        footer {
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 60px 0 40px;
+            text-align: center;
+        }
+
+        .footer-nav {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            margin-bottom: 30px;
+        }
+
+        .footer-nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .footer-nav a:hover {
+            color: var(--secondary);
+        }
+
+        .copyright {
+            color: #52525b;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-out-active {
+            animation: fadeOutPage 0.8s ease-out forwards;
+            pointer-events: none;
+            /* Prevent clicking during fade out */
+        }
+
+        @keyframes fadeOutPage {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+                filter: blur(0);
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(1.05);
+                filter: blur(10px);
+            }
+        }
+
+        /* --- MODAL --- */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: #121212;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 30px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            color: #666;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .close:hover {
+            color: #fff;
+            transform: rotate(90deg);
+        }
+
+        /* --- LOADING OVERLAY --- */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(5, 5, 5, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            color: #fff;
+        }
+
+        .loader {
+            width: 60px;
+            height: 60px;
+            border: 5px solid var(--bg-glass);
+            border-top: 5px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 24px;
+            box-shadow: 0 0 30px rgba(139, 92, 246, 0.2);
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            text-transform: uppercase;
+            background: linear-gradient(to right, #fff, var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .loading-subtext {
+            color: var(--text-muted);
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+
+        /* --- CUSTOM SCROLLBARS --- */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+            background-clip: content-box;
+        }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            nav {
+                display: none;
+            }
+
+            /* Sembunyikan menu di mobile untuk kesederhanaan */
+            .orb-1 {
+                width: 250px;
+                height: 250px;
+            }
+
+            .orb-2 {
+                width: 300px;
+                height: 300px;
+            }
+
+            .pill-input-container {
+                flex-direction: column;
+                padding: 16px;
+                gap: 12px;
+                border-radius: 24px;
+            }
+
+            .pill-input-container button {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 
 <body>
-    <div class="container">
 
-        <!-- ========== TOP HALF ========= -->
-        <div class="top-half">
+    <!-- 1. BACKGROUND ANIMATION LAYER (PURE CSS) -->
+    <div class="ambient-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+        <div class="noise-overlay"></div>
+    </div>
 
-            <!-- HEADER -->
-            <header class="header">
-                <nav class="nav">
-                    <a href="#tutorial">Tutorial</a>
-                    <a href="#pricelist">Pricelist</a>
-                    <div class="dropdown">Socials</div>
-                </nav>
+    <!-- LOADING OVERLAY -->
+    <div id="loading-overlay">
+        <div class="loader"></div>
+        <div class="loading-text">Fetching Form Data</div>
+        <div class="loading-subtext">Initializing scanner, please wait while we process the Google Form...</div>
+    </div>
 
-                <div class="logo">
-                    <a href="/">
-                        <img src="/images/mark-white.png">
-                        <img src="/images/logo-white.png">
-                    </a>
-                </div>
-
-                <div class="account"></div>
-            </header>
-
-            <!-- HERO -->
-            <main class="hero">
-                <h1>Make your life easier with <strong>Autofill</strong></h1>
-                <p class="tagline">Finish your questionnaire in just one click</p>
-
-                <div class="pill-input">
-                    <input id="formurl" type="text" class="form-input"
-                        placeholder="Ketik link Google Form Anda disini" />
-                    <button onclick="start()">Mulai</button>
-                </div>
-
-                <p id="form-status"></p>
-
-                <div class="arrow-down">
-                    <a href="#features"><i data-feather="circle"></i></a>
-                </div>
-            </main>
+    <!-- 2. MAIN CONTENT -->
+    <header>
+        <div class="header-inner" id="main-header">
+            <a href="/" class="logo">
+                <i class="fa-solid fa-bolt"></i>
+                <span>AUTOFILL</span>
+            </a>
+            <nav>
+                <a href="#features">Features</a>
+                <a href="#pricelist">Pricelist</a>
+                <a href="#" onclick="openTutorial(); return false;">Tutorial</a>
+            </nav>
         </div>
+    </header>
 
-        <!-- ========== BOTTOM HALF ========= -->
-        <div class="bottom-half">
+    <div class="container" id="main-content">
 
-            <!-- FEATURES -->
-            <section class="features" id="features">
-                <div class="feature-box">
-                    <img src="/images/package-img/Autofill-cepat-icon.svg">
-                    <h2 class="tagline">Cepat</h2>
-                    <p>Cocok untuk mahasiswa yang dikejar deadline.</p>
+        <main class="hero">
+            <h1>Make life easier with <strong>Autofill</strong></h1>
+            <p class="tagline">Finish your questionnaire in just one click. Fast, secure, and fully automated for your
+                needs.</p>
+
+            <div class="pill-input-container">
+                <input id="formurl" type="text" placeholder="Paste your Google Form link here..." autocomplete="off">
+                <button onclick="start()">Mulai</button>
+            </div>
+            <p id="form-status"></p>
+        </main>
+
+        <section class="features-grid" id="features">
+            <!-- Feature 1 -->
+            <div class="glass-panel feature-card">
+                <div class="icon-box"><i class="fas fa-bolt"></i></div>
+                <h3>Super Fast</h3>
+                <p>Cocok untuk mahasiswa yang dikejar deadline. Selesaikan ribuan responden dalam hitungan detik.</p>
+            </div>
+
+            <!-- Feature 2 -->
+            <div class="glass-panel feature-card">
+                <div class="icon-box"><i class="fas fa-shield-alt"></i></div>
+                <h3>Secure</h3>
+                <p>Data klien aman dari penyalahgunaan. Kami memprioritaskan privasi dan keamanan link Anda.</p>
+            </div>
+
+            <!-- Feature 3 -->
+            <div class="glass-panel feature-card">
+                <div class="icon-box"><i class="fas fa-magic"></i></div>
+                <h3>Flexible</h3>
+                <p>Menyesuaikan kebutuhan responden dan target. Support semua tipe pertanyaan Google Form.</p>
+            </div>
+        </section>
+
+        <section class="trial" id="pricelist">
+            <div class="section-header">
+                <h2>Pricelist</h2>
+                <p>Get 5 Free Respondents for New Registration!</p>
+            </div>
+
+            <div class="packages-grid">
+                <!-- Paket 1 -->
+                <div class="glass-panel package-card">
+                    <span class="package-range">Starter</span>
+                    <div class="package-number">50–99</div>
+                    <p style="color:var(--text-muted); margin-bottom:20px;">Respondents</p>
+                    <div class="package-price">Rp <b>500</b> /pcs</div>
+                    <button class="btn-select">Pilih Paket</button>
                 </div>
 
-                <div class="feature-box">
-                    <img src="/images/package-img/Autofill-aman-icon.svg">
-                    <h2 class="tagline">Aman</h2>
-                    <p>Data klien aman dari penyalahgunaan.</p>
+                <!-- Paket 2 (Active) -->
+                <div class="glass-panel package-card active">
+                    <span class="package-badge">Best Seller</span>
+                    <span class="package-range">Popular</span>
+                    <div class="package-number">100–299</div>
+                    <p style="color:var(--text-muted); margin-bottom:20px;">Respondents</p>
+                    <div class="package-price">Rp <b>400</b> /pcs</div>
+                    <button class="btn-select">Pilih Paket</button>
                 </div>
 
-                <div class="feature-box">
-                    <img src="/images/package-img/Autofill-fleksibel-icon.svg">
-                    <h2 class="tagline">Fleksibel</h2>
-                    <p>Menyesuaikan kebutuhan responden dan target.</p>
+                <!-- Paket 3 -->
+                <div class="glass-panel package-card">
+                    <span class="package-range">Enterprise</span>
+                    <div class="package-number">300–700</div>
+                    <p style="color:var(--text-muted); margin-bottom:20px;">Respondents</p>
+                    <div class="package-price">Rp <b>350</b> /pcs</div>
+                    <button class="btn-select">Pilih Paket</button>
                 </div>
-            </section>
+            </div>
+        </section>
 
-            <!-- PRICING -->
-            <section class="trial" id="pricelist">
-                <div class="title">
-                    <h1>Gunakan Free Trial-mu sekarang
-                        <p>Dapatkan gratis 5 responden!</p>
-                    </h1>
-                </div>
+        <footer>
+            <div class="footer-nav">
+                <a href="#pricelist">Pricelist</a>
+                <a href="/">Home</a>
+                <a href="#">FAQ</a>
+            </div>
+            <p class="copyright">© 2026 AUTOFILL COMMAND CENTER - ALL RIGHTS RESERVED</p>
+        </footer>
+    </div>
 
-                <div class="packages">
-                    <div class="package">
-                        <div class="top">
-                            <p>Diskon 10% dengan kode referral</p>
-                            <h1>50–99<br><span class="thin">RESPONDEN</span></h1>
-                            <div>
-                                <h2><small class="currency">Rp</small> 500<small class="thinner">/responden</small></h2>
-                                <small>*Lebih hemat 20%</small>
-                            </div>
-                        </div>
-                        <div class="bottom">
-                            <button>PILIH PAKET</button>
-                        </div>
-                    </div>
-
-                    <div class="package active has-bestseller-badge">
-                        <div class="bestseller-badge"><b>BEST SELLER</b></div>
-                        <div class="top">
-                            <p>Diskon 10% dengan kode referral</p>
-                            <h1>100–299<br><span class="thin">RESPONDEN</span></h1>
-                            <div>
-                                <h2><small class="currency">Rp</small> 400<small class="thinner">/responden</small></h2>
-                                <small>*Lebih hemat 20%</small>
-                            </div>
-                        </div>
-                        <div class="bottom">
-                            <button>PILIH PAKET</button>
-                        </div>
-                    </div>
-
-                    <div class="package">
-                        <div class="top">
-                            <p>Diskon 15% dengan kode referral</p>
-                            <h1>300–700<br><span class="thin">RESPONDEN</span></h1>
-                            <div>
-                                <h2><small class="currency">Rp</small> 350<small class="thinner">/responden</small></h2>
-                                <small>*Lebih hemat 30%</small>
-                            </div>
-                        </div>
-                        <div class="bottom">
-                            <button>PILIH PAKET</button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- FOOTER -->
-            <footer class="footer">
-                <div class="footer-logo">
-                    <img src="/images/mark-black.png">
-                </div>
-                <div class="footer-links">
-                    <a href="#pricelist">Pricelist</a>
-                    <a href="/">Home</a>
-                    <a href="#">FAQ</a>
-                </div>
-                <p>© 2025 AUTOFILL ALL RIGHTS RESERVED</p>
-            </footer>
-
+    <!-- TUTORIAL MODAL -->
+    <div id="tutorialModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeTutorial()">&times;</span>
+            <h2 style="color: var(--primary); margin-bottom: 15px;">
+                <i class="fa-solid fa-book-open" style="color: var(--secondary)"></i> Tutorial Cara Salin Link
+            </h2>
+            <div class="tutorial-body" style="color: #ccc; line-height: 1.6;">
+                <p>Tutorial content will be added here soon...</p>
+                <!-- User will provide actual content later -->
+            </div>
         </div>
     </div>
 
     <script>
-        feather.replace();
-
         function start() {
             const input = document.getElementById('formurl');
             const status = document.getElementById('form-status');
             const v = input.value.trim();
 
             status.innerText = '';
+            status.style.color = '#f87171'; // Reset color to red error
 
             if (!v) {
                 status.innerText = 'Masukkan link Google Form';
@@ -175,24 +889,56 @@
                 return;
             }
 
-            // Tambahkan animasi fade out sebelum redirect
-            const container = document.querySelector('.container');
-            container.style.animation = 'fadeOut 0.8s ease-out forwards';
-            
-            // Redirect setelah animasi selesai
+            // Trigger Loading UI
+            const overlay = document.getElementById('loading-overlay');
+            const content = document.getElementById('main-content');
+
+            overlay.style.display = 'flex';
+            content.classList.add('fade-out-active');
+
+            // Redirect after animation
             setTimeout(() => {
                 window.location.href = '/scrape?url=' + encodeURIComponent(v);
-            }, 800);
+            }, 700);
         }
 
-        // Tambahkan event listener untuk Enter key
-        document.getElementById('formurl').addEventListener('keypress', function(event) {
+        // Handle Enter Key
+        document.getElementById('formurl').addEventListener('keypress', function (event) {
             if (event.key === 'Enter') {
                 start();
             }
         });
-    </script>
 
+        // Smooth Scroll for Anchor Links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href');
+                if (targetId === '#') return;
+
+                document.querySelector(targetId).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+
+        // --- TUTORIAL MODAL LOGIC ---
+        function openTutorial() {
+            document.getElementById('tutorialModal').style.display = 'flex';
+        }
+
+        function closeTutorial() {
+            document.getElementById('tutorialModal').style.display = 'none';
+        }
+
+        // Close on outside click
+        window.addEventListener('click', function (e) {
+            const modal = document.getElementById('tutorialModal');
+            if (e.target === modal) {
+                closeTutorial();
+            }
+        });
+    </script>
 </body>
 
 </html>
