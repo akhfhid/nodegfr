@@ -29,13 +29,17 @@ app.get('/scrape', async (req, res) => {
     if (!formData || !formData.questions) {
         return res.render('index', {
             url,
-            questions: [] // aman buat EJS
+            questions: [],
+            pageCount: 0
         });
     }
 
     res.render('index', {
         url,
-        questions: formData.questions
+        questions: formData.questions,
+        pageCount: formData.pageCount || 0,
+        pageHistoryStr: formData.pageHistoryStr || "0",
+        formTitle: formData.title || "Google Form"
     });
 });
 
@@ -62,6 +66,10 @@ app.post('/save-probabilities', express.json(), express.urlencoded({ extended: t
     let stats = {}; // { questionName: { option: count } }
 
     for (const entry of data) {
+        if (entry.name == "url" || entry.name == "pageCount" || entry.name == "manualPageCount" || entry.name == "pageHistoryStr") {
+            continue;
+        }
+
         if (formData['name-faker'] && entry.name == formData['name-faker']) {
             nameFakerEntry = entry;
         } else if (formData['gender-faker'] && entry.name == formData['gender-faker']) {
@@ -124,34 +132,137 @@ app.post('/save-probabilities', express.json(), express.urlencoded({ extended: t
     res.json({ urlsToSend, stats });
 });
 
-app.post('/execute-links', express.json(), express.urlencoded({ extended: true }), (req, res) => {
-    let urlsuccess = 0;
-    let urlLinkStatus = [];
-    let delay = 1000;
+// --- JOB MANAGEMENT ---
+let globalJob = {
+    isRunning: false,
+    total: 0,
+    current: 0,
+    success: 0,
+    fail: 0,
+    logs: [],
+    startTime: null
+};
 
-    // Handle both 'urls' and 'urls[]' and ensure it's an array
+app.post('/execute-links', express.json(), express.urlencoded({ extended: true }), (req, res) => {
+    if (globalJob.isRunning) {
+        return res.status(409).json({ error: 'A job is already running' });
+    }
+
+    // 1. Get Params
     let urlsVal = req.body.urls || req.body['urls[]'];
     if (!urlsVal) return res.status(400).json({ error: 'No URLs provided' });
-    const urlsToSend = Array.isArray(urlsVal) ? urlsVal : [urlsVal];
-    let promises = urlsToSend.map((u) => {
-        return new Promise((resolve) => {
-            setTimeout(function () {
-                https.get(u, (response) => {
-                    urlLinkStatus.push({ u, s: response.statusCode });
-                    if (response.statusCode == 200) {
-                        urlsuccess++;
-                    }
-                    console.log(u, response.statusCode);
-                    resolve();
-                });
-            }, delay);
-        });
-    });
 
-    Promise.all(promises).then(() => {
-        res.send([{ WARNING: "RETURN AFTER RESPOND, DO NOT RELOAD HERE", urlsuccess, targetCount: urlsToSend.length, urlsToSend, urlLinkStatus }]);
-    });
+    // Ensure array
+    const urlsToSend = Array.isArray(urlsVal) ? urlsVal : [urlsVal];
+
+    // Config
+    const concurrency = parseInt(req.body.concurrency) || 5;
+    const delay = parseInt(req.body.delay) || 1000;
+    const manualPageCount = parseInt(req.body.manualPageCount) || 0;
+    const pageHistoryStr = req.body.pageHistoryStr || null;
+
+    // 2. Init Job
+    globalJob = {
+        isRunning: true,
+        total: urlsToSend.length,
+        current: 0,
+        success: 0,
+        fail: 0,
+        logs: [],
+        startTime: Date.now()
+    };
+
+    // 3. Start Background Worker (Fire and Forget)
+    runBackgroundJob(urlsToSend, concurrency, delay, manualPageCount, pageHistoryStr);
+
+    // 4. Return immediately
+    res.json({ message: 'Job started', total: urlsToSend.length });
 });
+
+app.get('/job-status', (req, res) => {
+    res.json(globalJob);
+});
+
+app.post('/stop-job', (req, res) => {
+    if (!globalJob.isRunning) return res.json({ message: 'No job running' });
+    globalJob.isRunning = false;
+    res.json({ message: 'Stop signal sent' });
+});
+
+async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, pageHistoryStr = null) {
+    console.log(`[JOB] Starting background job: ${urls.length} items. Threads: ${concurrency}. Manual Pages: ${manualPageCount}. Page History: ${pageHistoryStr}`);
+
+    let currentIndex = 0;
+    const activeWorkers = [];
+
+    const worker = async (workerId) => {
+        while (currentIndex < urls.length && globalJob.isRunning) {
+            const index = currentIndex++;
+            const u = urls[index];
+
+            let finalUrl = u;
+
+            // PRIORITY: If explicit Page ID string exists, use it.
+            if (pageHistoryStr && pageHistoryStr !== "0") {
+                if (finalUrl.includes('pageHistory=')) {
+                    finalUrl = finalUrl.replace(/pageHistory=[^&]*/, `pageHistory=${pageHistoryStr}`);
+                } else {
+                    finalUrl += `&pageHistory=${pageHistoryStr}`;
+                }
+            }
+            // FALLBACK: If explicit ID missing but Manual Count > 0, generate sequence 0,1,2...
+            // (Note: This is risky for forms with specific IDs, but OK if scraping failed entirely)
+            else if (manualPageCount > 0) {
+                const pageHistory = Array.from({ length: manualPageCount + 1 }, (_, i) => i).join(',');
+                if (finalUrl.includes('pageHistory=')) {
+                    finalUrl = finalUrl.replace(/pageHistory=[^&]*/, `pageHistory=${pageHistory}`);
+                } else {
+                    finalUrl += `&pageHistory=${pageHistory}`;
+                }
+            }
+
+            try {
+                const status = await new Promise((resolve) => {
+                    const req = https.get(finalUrl, (response) => {
+                        resolve(response.statusCode);
+                    });
+                    req.on('error', (e) => {
+                        resolve('ERROR');
+                    });
+                });
+
+                if (status == 200 || status == 201) {
+                    globalJob.success++;
+                } else {
+                    console.log(`[JOB FAIL] Status: ${status} | URL: ...${u.slice(-50)}`);
+                    // Check if it's a redirect (common in Google Forms)
+                    if (status >= 300 && status < 400) {
+                        console.log(`[JOB INFO] Redirect detected. Usually means success but we aren't following it.`);
+                        // For now, let's count it as success to verify
+                        globalJob.success++;
+                    } else {
+                        globalJob.fail++;
+                    }
+                }
+            } catch (err) {
+                globalJob.fail++;
+            }
+
+            globalJob.current++;
+
+            if (delay > 0) await new Promise(r => setTimeout(r, delay));
+        }
+    };
+
+    const numWorkers = Math.min(concurrency, urls.length);
+    for (let i = 0; i < numWorkers; i++) {
+        activeWorkers.push(worker(i + 1));
+    }
+
+    await Promise.all(activeWorkers);
+    globalJob.isRunning = false;
+    console.log(`[JOB] Finished. Success: ${globalJob.success}, Fail: ${globalJob.fail}`);
+}
 
 app.listen(PORT, () => {
     console.log(`Example app listening on port ${PORT}`);
@@ -162,7 +273,7 @@ function decodeToGoogleFormUrl(baseUrl, data, selections = []) {
     const urlParams = new URLSearchParams();
 
     for (const entry of data) {
-        if (entry.name == "url") {
+        if (entry.name == "url" || entry.name == "pageCount" || entry.name == "manualPageCount" || entry.name == "pageHistoryStr") {
             continue;
         }
         const name = entry.name;
@@ -170,6 +281,8 @@ function decodeToGoogleFormUrl(baseUrl, data, selections = []) {
         const hasOtherOption = entry.hasOtherOption;
         const items = entry.items;
         let selectedResult;
+        console.log(`[DECIDER] Question: ${name} (${items.length} options)`);
+        items.forEach(i => console.log(` - ${i.option.substring(0, 10)}... : ${i.chance}% (Other: ${i.isOtherOption})`));
 
         if (isMultipleChoice) {
             selectedResult = selectIndependentOptions(items);
@@ -186,6 +299,9 @@ function decodeToGoogleFormUrl(baseUrl, data, selections = []) {
             selections.push({ name, values: selectionValues });
         } else {
             selectedResult = selectWeightedRandomItem(items);
+
+            console.log(`[DECIDER] Selected: ${selectedResult.option} (isOther: ${selectedResult.isOtherOption})`);
+
             if (selectedResult.isOtherOption) {
                 urlParams.append(name + '.other_option_response', selectedResult.option);
                 urlParams.append(name, '__other_option__');
@@ -196,6 +312,34 @@ function decodeToGoogleFormUrl(baseUrl, data, selections = []) {
         }
     }
 
+    // Fix for Multi-Page Forms:
+    // Priority: Manual Override > Scraped Data > Default 0
+    let pages = 0;
+    let usedExtractedHistory = false;
+    let pageHistory = "0";
+
+    // Check for manual override passed in data
+    const manualOverride = data.find(e => e.name === 'manualPageCount');
+    const extractedHistory = data.find(e => e.name === 'pageHistoryStr')?.value;
+
+    if (manualOverride && parseInt(manualOverride.value) > 0) {
+        pages = parseInt(manualOverride.value);
+        console.log(`[URL BUILDER] Using Manual Page Count: ${pages}`);
+        pageHistory = Array.from({ length: pages + 1 }, (_, i) => i).join(',');
+    } else if (extractedHistory && extractedHistory !== "0") {
+        console.log(`[URL BUILDER] Using Extracted Page History: ${extractedHistory}`);
+        pageHistory = extractedHistory;
+        usedExtractedHistory = true;
+    } else {
+        pages = parseInt(data.find(e => e.name === 'pageCount')?.value) || 0;
+        pageHistory = Array.from({ length: pages + 1 }, (_, i) => i).join(',');
+    }
+
+    urlParams.append('pageHistory', pageHistory);
+
+    console.log(`[URL BUILDER] Final Page Count: ${pages} -> pageHistory: ${pageHistory}`);
+    console.log(`[URL BUILDER] Full Params: ${urlParams.toString()}`);
+
     return `${baseUrl}&${urlParams.toString()}`;
 }
 
@@ -203,9 +347,12 @@ function parseData(formData) {
     const remappedOutput = [];
 
     for (const [entry, value] of Object.entries(formData)) {
-        if (entry.startsWith("url") || entry.startsWith("respondCount")) continue;
+        if (entry === 'pageCount' || entry === 'manualPageCount' || entry === 'pageHistoryStr') {
+            remappedOutput.push({ name: entry, value: value });
+            continue;
+        }
 
-        // Match keys like entry.123_answers or entry.123_answers[]
+        if (entry.startsWith("url") || entry.startsWith("respondCount")) continue;
         if (entry.includes('_answers')) {
             const questionId = entry.split('_')[0];
             const multipleChoice = formData[`${questionId}_isMultipleChoice`] || formData[`${questionId}_isMultipleChoice[]`];
@@ -221,6 +368,14 @@ function parseData(formData) {
                 const answerStr = String(answer);
                 const lines = answerStr.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
 
+                // Determine if this answer block (original text) matches "Other"
+                let isOtherOptionBlock = false;
+                if (Array.isArray(otherOptionResponse)) {
+                    isOtherOptionBlock = otherOptionResponse.includes(answerStr);
+                } else {
+                    isOtherOptionBlock = (otherOptionResponse == answerStr);
+                }
+
                 if (lines.length > 1) {
                     const baseChance = parseFloat(Array.isArray(chancesArray) ? chancesArray[i] : chancesArray) || 0;
                     const distributedChance = baseChance / lines.length;
@@ -228,16 +383,15 @@ function parseData(formData) {
                         items.push({
                             option: line,
                             chance: distributedChance,
-                            isOtherOption: false
+                            isOtherOption: isOtherOptionBlock
                         });
                     });
                 } else {
-                    let isOtherOption = (otherOptionResponse == answer);
                     const chance = Array.isArray(chancesArray) ? chancesArray[i] : chancesArray;
                     const newAnswer = {
                         option: answer,
                         chance: chance || 0,
-                        isOtherOption
+                        isOtherOption: isOtherOptionBlock
                     };
                     items.push(newAnswer);
                 }
@@ -306,133 +460,172 @@ async function scrape(url) {
         // Wait for network to be idle
         await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
 
+        // DEBUG: Listen to browser console
+        page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+
         const pageTitle = await page.title();
         console.log(`[SCRAPER] Page Title: ${pageTitle}`);
 
         if (pageTitle.toLowerCase().includes('sign in') || pageTitle.toLowerCase().includes('login')) {
             console.error('[SCRAPER] Login required or restricted form.');
+            await page.close();
             return { error: 'Login required', questions: [] };
         }
-        const formData = await page.evaluate(() => {
-            const questions = [];
-            const typeCounts = {};
-            const questionEls = document.querySelectorAll('.Qr7Oae');
-            let externalInputIndex = 0;
-
-            questionEls.forEach((el, i) => {
-                const questionTextEl = el.querySelector('.M7eMe');
-                const questionTitle = questionTextEl ? questionTextEl.innerText.trim() : 'Untitled question';
-
-                let name = null;
-                const inputEl = el.querySelector('input[name^="entry."], textarea[name^="entry."]');
-                if (inputEl) {
-                    name = inputEl.getAttribute('name');
-                } else {
-                    const radioOrCheckInput = el.querySelector('input[type="radio"][name^="entry."], input[type="checkbox"][name^="entry."]');
-                    if (radioOrCheckInput) {
-                        name = radioOrCheckInput.getAttribute('name');
-                    }
-                }
-
-                let type = 'Unknown';
-                if (el.querySelector('.zwllIb')) type = 'Multiple Choice';
-                else if (el.querySelector('.lLfZXe.fnxRtf.EzyPc')) type = 'Multiple Choice Grid';
-                else if (el.querySelector('.V4d7Ke.wzWPxe.OIC90c')) type = 'Checkbox Grid';
-                else if (el.querySelector('.ghIlv.s6sSOd')) type = 'Rating';
-                else if (el.querySelector('.Zki2Ve')) type = 'Linear Scale';
-                else if (el.querySelector('[role=option]')) type = 'Dropdown';
-                else if (el.querySelector('.eBFwI')) type = 'Checkboxes';
-                else if (el.querySelector('textarea')) type = 'Paragraph';
-                else if (el.querySelector('input[type="text"]')) type = 'Short Answer';
-
-                if (type == "Unknown") return;
-
-                typeCounts[type] = (typeCounts[type] || 0) + 1;
-
-                if (name == null && type != "Unknown") {
-                    name = externalInputIndex;
-                    externalInputIndex++;
-                } else if (name) {
-                    name = name.split('_')[0];
-                }
-
-                let hasOtherOptions = false;
-                const options = [];
-                if (type === 'Multiple Choice') {
-                    el.querySelectorAll('.zwllIb:not(.zfdaxb)').forEach(opt => {
-                        const text = opt.innerText.trim();
-                        options.push(text);
-                    });
-                    if (el.querySelector('.zfdaxb')) {
-                        hasOtherOptions = true;
-                    }
-                } else if (type === 'Dropdown') {
-                    el.querySelectorAll('.OIC90c[role="option"]').forEach(opt => {
-                        const text = opt.innerText.trim();
-                        if (text) options.push(text);
-                    });
-                } else if (type === 'Checkboxes') {
-                    el.querySelectorAll('.eBFwI:not(.RVLOe)').forEach(opt => {
-                        const text = opt.innerText.trim();
-                        if (text) options.push(text);
-                    });
-                    if (el.querySelector('.RVLOe')) {
-                        hasOtherOptions = true;
-                    }
-                } else if (type === "Linear Scale") {
-                    const numbersInEl = Array.from(el.querySelectorAll('.Zki2Ve')).map(e => e.innerText.trim());
-                    if (numbersInEl.length > 1) {
-                        const min = parseInt(numbersInEl[0]);
-                        const max = parseInt(numbersInEl[numbersInEl.length - 1]);
-                        for (let i = min; i <= max; i++) {
-                            options.push(i);
-                        }
-                    } else {
-                        options.push("Scale unavailable");
-                    }
-                } else if (type === "Rating") {
-                    type = "Linear Scale";
-                    el.querySelectorAll('.UNQpic').forEach((r) => {
-                        options.push(r.textContent.trim());
-                    });
-                } else if (type === "Multiple Choice Grid") {
-                    const gridOptions = [];
-                    el.querySelector('.ssX1Bd.KZt9Tc').querySelectorAll('.OIC90c').forEach((c) => {
-                        gridOptions.push(c.textContent);
-                    });
-                    el.querySelectorAll('.lLfZXe.fnxRtf.EzyPc').forEach((r) => {
-                        let rName = r.querySelector("input[name^=entry]").getAttribute('name');
-                        rName = rName.split('_')[0];
-                        questions.push({ name: rName, question: r.textContent, type: "Multiple Choice", options: gridOptions, hasOtherOptions: false });
-                    });
-                }
-
-                if (type != "Multiple Choice Grid" && type != "Checkbox Grid") {
-                    questions.push({ name, question: questionTitle, type, options, hasOtherOptions });
-                }
-            });
-
-            let externalInputsName = [];
-            document.querySelectorAll('input[name^=entry]:not([name$=sentinel])').forEach((i) => {
-                externalInputsName.push(i.name);
-            });
-
-            questions.forEach(q => {
-                if (typeof q.name === 'number' && externalInputsName[q.name]) {
-                    q.name = externalInputsName[q.name];
-                }
-            });
-
-            return { questions, typeCounts };
+        // Extract clean form title
+        const formTitle = await page.evaluate(() => {
+            const heading = document.querySelector('div[role="heading"][aria-level="1"]') || document.querySelector('div[role="heading"]') || document.querySelector('.F9yp7e');
+            return heading ? heading.innerText.trim() : document.title.replace(' - Google Forms', '');
         });
 
-        console.log(`[SCRAPER] Found ${formData.questions.length} valid questions.`);
-        console.log(`[SCRAPER] Question type breakdown:`, formData.typeCounts);
-        await page.close(); // Close the page after scraping
-        return { questions: formData.questions };
+        const formData = await page.evaluate(() => {
+            const getLoadData = () => {
+                const scripts = document.querySelectorAll('script');
+                for (const script of scripts) {
+                    if (script.textContent.includes('FB_PUBLIC_LOAD_DATA_')) {
+                        const match = script.textContent.match(/FB_PUBLIC_LOAD_DATA_\s*=\s*(.*?);\s*<\/script>/) ||
+                            script.textContent.match(/FB_PUBLIC_LOAD_DATA_\s*=\s*(.*);/);
+                        if (match && match[1]) {
+                            return JSON.parse(match[1]);
+                        }
+                    }
+                }
+                return null;
+            };
+
+            const rawData = getLoadData();
+            if (!rawData) return { error: "Failed to find form data (FB_PUBLIC_LOAD_DATA_)", questions: [] };
+
+            const questions = [];
+            const typeCounts = {};
+            let pageCount = 0;
+            const pageHistory = [0];
+
+            const fields = rawData[1][1];
+            if (!fields) return { error: "No fields found in form data", questions: [] };
+
+            fields.forEach((field) => {
+                const label = field[1];
+                const typeId = field[3];
+                const inputData = field[4];
+
+                console.log(`[SCRAPER RAW] Type: ${typeId}, Label: ${label ? label.substring(0, 20) : 'N/A'}`);
+
+                if (!inputData && typeId !== 8) {
+                    return;
+                }
+
+                // TYPE 8 = Section Header / Page Break logic first
+                if (typeId === 8) {
+                    console.log(`[SCRAPER RAW] Type 8 Found!`);
+                    try {
+                        const pageId = field[0];
+                        if (pageId) {
+                            pageHistory.push(pageId);
+                        }
+                    } catch (e) {
+                        console.error(`[SCRAPER] Error extracting Page ID: ${e.message}`);
+                    }
+
+                    questions.push({
+                        name: `section_header_${pageCount}`,
+                        question: field[1] || "Untitled Section",
+                        type: 'SectionHeader',
+                        options: [],
+                        hasOtherOptions: false
+                    });
+
+                    pageCount++;
+                    return; // Done with Type 8, next field
+                }
+
+                // For other types, we need inputData
+                if (!inputData) return;
+
+                let entryId = inputData[0][0];
+                let questionType = 'Unknown';
+                let options = [];
+                let linearScaleLabels = [null, null]; // [startLabel, endLabel]
+                let hasOtherOptions = false;
+
+                switch (typeId) {
+                    case 0: questionType = 'Short Answer'; break;
+                    case 1: questionType = 'Paragraph'; break;
+                    case 2:
+                        questionType = 'Multiple Choice';
+                        if (inputData[0][1]) {
+                            options = inputData[0][1].map(opt => opt[0]).filter(opt => opt !== "");
+                            hasOtherOptions = inputData[0][1].some(opt => opt[4] == 1); // Check for "other" flag
+                        }
+                        break;
+                    case 3:
+                        questionType = 'Dropdown';
+                        if (inputData[0][1]) {
+                            options = inputData[0][1].map(opt => opt[0]).filter(opt => opt !== "");
+                        }
+                        break;
+                    case 4:
+                        questionType = 'Checkboxes';
+                        if (inputData[0][1]) {
+                            options = inputData[0][1].map(opt => opt[0]).filter(opt => opt !== "");
+                            hasOtherOptions = inputData[0][1].some(opt => opt[4] == 1);
+                        }
+                        break;
+                    case 5:
+                        questionType = 'Linear Scale';
+                        if (inputData[0][1]) {
+                            options = inputData[0][1].map(opt => opt[0]);
+                        }
+                        // Extract Start/End Labels (standard indices based on observation)
+                        if (inputData[0][3]) linearScaleLabels[0] = inputData[0][3];
+                        if (inputData[0][4]) linearScaleLabels[1] = inputData[0][4];
+                        break;
+                    case 7:
+                        questionType = 'Grid';
+                        // Skip Grid for MVP stability
+                        return;
+                        break;
+                    case 9: questionType = 'Date'; break;
+                    case 10: questionType = 'Time'; break;
+                    default: return;
+                }
+
+                if (questionType !== 'Unknown' && questionType !== 'Grid') {
+                    if (entryId) {
+                        typeCounts[questionType] = (typeCounts[questionType] || 0) + 1;
+                        questions.push({
+                            name: `entry.${entryId}`,
+                            question: label,
+                            type: questionType,
+                            options: options,
+                            linearScaleLabels: linearScaleLabels, // Pass labels
+                            hasOtherOptions: hasOtherOptions
+                        });
+                    }
+                }
+            });
+
+            return { questions, typeCounts, pageCount, pageHistoryStr: pageHistory.join(',') };
+        });
+
+        if (formData.error) {
+            console.error(`[SCRAPER] Error extracting data: ${formData.error}`);
+            await page.close();
+            return { error: formData.error, questions: [], pageCount: 0, pageHistoryStr: "0" };
+        }
+
+        const validData = formData.questions.filter(q => q);
+        console.log(`[SCRAPER] Found ${validData.length} valid questions.`);
+
+        // Include formTitle in the return object
+        return {
+            questions: validData,
+            pageCount: formData.pageCount,
+            pageHistoryStr: formData.pageHistoryStr,
+            title: formTitle
+        };
     } catch (err) {
         console.error(`[SCRAPER] Error: ${err.message}`);
-        if (page) await page.close(); // Ensure page is closed on error
+        if (page) await page.close();
         return { error: err.message, questions: [] };
     }
 }

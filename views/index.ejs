@@ -173,9 +173,9 @@
 
     /* --- 3. LAYOUT & GLASS COMPONENTS --- */
     .container {
-      max-width: 1000px;
+      max-width: 850px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 15px;
       position: relative;
       z-index: 1;
     }
@@ -387,11 +387,11 @@
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--border-color);
-      border-radius: var(--border-radius);
+      border-radius: 16px;
       box-shadow: 0 4px 24px var(--shadow-soft);
       transition: var(--transition);
-      padding: 30px;
-      margin-bottom: 25px;
+      padding: 20px;
+      margin-bottom: 20px;
     }
 
     .glass-panel:hover {
@@ -403,8 +403,8 @@
     /* --- FORM INPUTS --- */
     .form-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
     }
 
     .input-group {
@@ -428,10 +428,10 @@
       background: var(--bg-input);
       border: 1px solid var(--input-border);
       color: var(--text-main);
-      padding: 14px;
-      border-radius: 12px;
+      padding: 10px;
+      border-radius: 8px;
       font-family: inherit;
-      font-size: 1rem;
+      font-size: 0.9rem;
       width: 100%;
       transition: var(--transition);
     }
@@ -448,18 +448,19 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
-      padding-bottom: 15px;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
       border-bottom: 1px solid var(--header-border);
     }
 
     .question-title {
-      font-size: 1.1rem;
+      font-size: 1rem;
       font-weight: 600;
       color: var(--text-main);
       display: flex;
       align-items: center;
       gap: 10px;
+      line-height: 1.4;
     }
 
     .badge {
@@ -470,6 +471,7 @@
       border-radius: 20px;
       text-transform: uppercase;
       font-weight: 700;
+      white-space: nowrap;
     }
 
     /* Answer List */
@@ -483,11 +485,11 @@
     .other-option {
       display: flex;
       align-items: center;
-      gap: 15px;
-      margin-bottom: 12px;
+      gap: 12px;
+      margin-bottom: 8px;
       background: var(--bg-input);
-      padding: 15px;
-      border-radius: 12px;
+      padding: 10px;
+      border-radius: 8px;
       border: 1px solid transparent;
       transition: var(--transition);
     }
@@ -503,29 +505,113 @@
       color: var(--text-main);
     }
 
-    /* Percentage Input Custom Styling */
+    /* Percentage Slider Custom Styling */
     .percent-input-wrapper {
       position: relative;
-      width: 90px;
-      flex-shrink: 0;
+      flex: 1;
+      min-width: 100px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
 
-    .percent-input-wrapper input {
-      padding-right: 30px;
-      text-align: right;
-      font-weight: bold;
-      color: var(--secondary);
-      border-color: var(--input-border);
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      step: 0.01;
+      /* High precision for smooth balancing */
+      background: linear-gradient(90deg, var(--secondary) 0%, var(--bg-input) 0%);
+      /* Initial fill */
+      border-radius: 5px;
+      outline: none;
+      border: 1px solid var(--input-border);
     }
 
-    .percent-input-wrapper::after {
-      content: '%';
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #666;
+    /* Linear Scale Custom Visuals */
+    .linear-scale-container {
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 12px;
+      padding: 15px;
+      margin-top: 10px;
+      border: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      align-items: center;
+      /* Center content */
+    }
+
+    .scale-labels-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+      width: 100%;
+      max-width: 500px;
+      /* Constrain header width too */
+    }
+
+    .scale-label-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      border-radius: 8px;
+      /* Softer radius */
       font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: capitalize;
+      /* Normal case looks cleaner */
+      letter-spacing: 0.3px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .scale-label-start {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .scale-label-end {
+      background: rgba(34, 197, 94, 0.2);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+    }
+
+    .scale-options-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      max-width: 450px;
+      /* Shorten slider visuals as requested */
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: var(--secondary);
+      cursor: pointer;
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--secondary);
+      transition: transform 0.2s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: var(--secondary);
+      border: none;
+      cursor: pointer;
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--secondary);
     }
 
     .calc-display {
@@ -557,6 +643,14 @@
       border-radius: 50%;
       background: #333;
       box-shadow: 0 0 5px currentColor;
+    }
+
+    .form-footer {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 20px;
     }
 
     /* --- BUTTONS --- */
@@ -609,29 +703,27 @@
     }
 
     .submit-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      padding: 16px 32px;
-      background: linear-gradient(135deg, var(--primary), #7c3aed);
+      background: var(--primary);
       color: white;
+      padding: 12px 24px;
       border-radius: var(--btn-radius);
       font-size: 1rem;
+      font-weight: 700;
+      width: 100%;
+      box-shadow: 0 4px 15px var(--accent-glow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: var(--transition);
+      cursor: pointer;
       text-transform: uppercase;
       letter-spacing: 1px;
-      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
-      white-space: nowrap;
-    }
-
-    .submit-btn-full {
-      width: 100%;
-      display: flex;
     }
 
     .submit-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(139, 92, 246, 0.5);
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 8px 25px var(--accent-glow);
     }
 
     .submit-btn:active {
@@ -748,6 +840,91 @@
       .calc-display {
         width: 100%;
       }
+
+      .form-footer {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+      }
+
+      .form-footer .input-group,
+      .form-footer button {
+        width: 100%;
+        height: auto !important;
+        min-height: 44px;
+        padding: 12px 15px;
+        font-size: 0.85rem;
+      }
+
+      .form-footer input {
+        width: 100% !important;
+      }
+
+      /* Navbar Fix Mobile */
+      .header-inner {
+        padding: 15px 15px;
+        gap: 10px;
+      }
+
+      .logo {
+        font-size: 1.1rem;
+        gap: 8px;
+      }
+
+      nav {
+        gap: 12px;
+      }
+
+      nav a {
+        font-size: 0.85rem;
+      }
+
+      /* Question Header Mobile Redesign - Full Width Title */
+      .question-container summary {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        padding: 12px !important;
+        gap: 8px !important;
+      }
+
+      .question-title {
+        font-size: 0.85rem !important;
+        width: 100% !important;
+        gap: 8px;
+        align-items: flex-start !important;
+      }
+
+      .question-meta-mobile {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .badge {
+        font-size: 0.6rem !important;
+        padding: 2px 8px !important;
+      }
+
+      /* Logo img fix */
+      .logo img {
+        height: 24px;
+      }
+    }
+
+    @media(max-width: 480px) {
+      .logo {
+        font-size: 1rem;
+      }
+
+      nav {
+        gap: 8px;
+      }
+
+      nav a {
+        font-size: 0.75rem;
+      }
     }
 
     /* --- CUSTOM SCROLLBARS --- */
@@ -812,146 +989,144 @@
       <button type="button" class="btn-change" onclick="changeForm()">Change Form</button>
     </div>
 
-    <form id="probabilityForm" method="post" action="/save-probabilities">
+    <% if (typeof formTitle !=='undefined' && formTitle) { %>
+      <h1 class="form-title"
+        style="text-align: center; margin: 20px 0; color: var(--text-main); font-size: 1.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">
+        <%= formTitle %>
+      </h1>
+      <% } %>
 
-      <section class="glass-panel config-panel">
-        <div class="form-grid">
-          <div class="input-group">
-            <label><i class="fa-solid fa-user-secret"></i> Faker Name</label>
-            <input name="name-faker" type="text" placeholder="John Doe">
-          </div>
-          <div class="input-group">
-            <label><i class="fa-solid fa-venus-mars"></i> Gender</label>
-            <input name="gender-faker" type="text" placeholder="Male/Female">
-          </div>
-          <div class="input-group">
-            <label><i class="fa-solid fa-city"></i> City</label>
-            <input name="city-faker" type="text" placeholder="City Name">
-          </div>
-          <div class="input-group">
-            <label><i class="fa-solid fa-ban"></i> Anti-Repeat</label>
-            <input name="dont-repeat_target" type="text" placeholder="Target Name">
-          </div>
-        </div>
-      </section>
+        <form id="probabilityForm" method="POST" action="/save-probabilities">
 
-      <input type="text" hidden name="url" value="<%=url%>">
+          <input type="hidden" name="url" value="<%= url %>">
+          <input type="hidden" name="pageCount" value="<%= pageCount %>">
+          <input type="hidden" name="pageHistoryStr"
+            value="<%= typeof pageHistoryStr !== 'undefined' ? pageHistoryStr : '0' %>">
 
-      <% questions.forEach((q)=> { %>
-        <div class="glass-panel question-container">
-          <input type="hidden" name="<%= q.name %>_text" value="<%= q.question %>">
-
-          <div class="question-header">
-            <div class="question-title">
-              <i class="fa-regular fa-circle-question" style="color: var(--secondary)"></i>
-              <%= q.question %>
-            </div>
-            <span class="badge">
-              <%= q.type %>
-            </span>
-          </div>
-
-          <% if (q.type==="Short Answer" ) { %>
-            <ul class="answer-options">
-              <li class="option-input"
-                style="flex-direction: column; align-items: stretch; background: transparent; border: none; padding: 0;">
-                <textarea name="<%= q.name %>_answers[]" rows="3"
-                  placeholder="Type each possible answer on a new line..." required></textarea>
-                <input type="hidden" name="<%= q.name %>_chances[]" value="100">
-                <div style="font-size: 0.8rem; color: var(--accent-success); margin-top: 8px;">
-                  <i class="fa-solid fa-check"></i> Equal random distribution enabled
-                </div>
-              </li>
-            </ul>
-
-            <% } else if (q.type==="Paragraph" ) { %>
-              <ul class="answer-options">
-                <li class="option-input">
-                  <textarea name="<%= q.name %>_answers[]" rows="2" placeholder="Possible answer..." required
-                    style="flex:1"></textarea>
-                  <div class="percent-input-wrapper">
-                    <input type="number" data-target-name="<%= q.name %>_chances[]" value="100" min="0" max="100"
-                      required>
-                  </div>
-                  <input type="hidden" name="<%= q.name %>_chances[]" value="100" min="0" max="100" required>
-                  <div class="calc-display">100.00</div>
-                  <button type="button" class="btn-icon remove-option" style="display: none;"><i
-                      class="fa-solid fa-xmark"></i></button>
-                </li>
-              </ul>
-              <button type="button" class="btn-secondary add-option" data-question="<%= q.name %>">
-                <i class="fa-solid fa-plus"></i> Add Answer Variant
-              </button>
-              <div class="chance-total" data-question="<%= q.name %>">
-                <div class="status-dot"></div> <span class="val">Total: 0%</span>
+          <section class="glass-panel config-panel">
+            <div class="form-grid">
+              <div class="input-group">
+                <label><i class="fa-solid fa-user-secret"></i> Faker Name</label>
+                <input name="name-faker" type="text" placeholder="John Doe">
               </div>
+              <div class="input-group">
+                <label><i class="fa-solid fa-venus-mars"></i> Gender</label>
+                <input name="gender-faker" type="text" placeholder="Male/Female">
+              </div>
+              <div class="input-group">
+                <label><i class="fa-solid fa-city"></i> City</label>
+                <input name="city-faker" type="text" placeholder="City Name">
+              </div>
+              <div class="input-group">
+                <label><i class="fa-solid fa-ban"></i> Anti-Repeat</label>
+                <input name="dont-repeat_target" type="text" placeholder="Target Name">
+              </div>
+            </div>
+          </section>
 
-              <% } else if (q.type==="Multiple Choice" ) { %>
-                <ul class="answer-options">
-                  <% q.options.forEach((option, index)=> { %>
-                    <li>
-                      <label>
-                        <%= option %>
-                      </label>
-                      <input type="hidden" name="<%= q.name %>_answers[]" value="<%= option %>">
-                      <div class="percent-input-wrapper">
-                        <input type="number" data-order="<%= index %>" data-target-name="<%= q.name %>_chances[]"
-                          value="0" min="0" max="100" required>
+          <input type="text" hidden name="url" value="<%=url%>">
+
+          <!-- Initial Page 1 Container -->
+          <details open class="glass-panel page-section"
+            style="margin-bottom: 20px; border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
+            <summary
+              style="padding: 15px; background: rgba(255,255,255,0.05); cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; font-weight: bold; color: var(--text-main);">
+              <span><i class="fa-solid fa-file-lines" style="color: var(--secondary); margin-right: 10px;"></i> Page 1
+                (Start)</span>
+              <i class="fa-solid fa-chevron-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
+            </summary>
+            <div style="padding: 20px;">
+
+              <% questions.forEach(function(q) { %>
+
+                <% if (q.type==='SectionHeader' ) { %>
+            </div>
+          </details>
+
+          <details class="glass-panel page-section"
+            style="margin-bottom: 20px; border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
+            <summary
+              style="padding: 15px; background: rgba(255,255,255,0.05); cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; font-weight: bold; color: var(--text-main);">
+              <span style="text-transform: uppercase;"><i class="fa-solid fa-layer-group"
+                  style="color: var(--accent-primary); margin-right: 10px;"></i>
+                <%= q.question %>
+              </span>
+              <i class="fa-solid fa-chevron-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
+            </summary>
+            <div style="padding: 20px;">
+              <% return; /* Skip rendering input box for header itself */ %>
+                <% } %>
+
+                  <details class="glass-panel question-container"
+                    style="box-shadow: none; background: rgba(0,255,100,0.02); padding: 0; margin-bottom: 12px;">
+                    <summary
+                      style="padding: 12px 15px; cursor: pointer; list-style: none; display: flex; align-items: flex-start; justify-content: space-between; font-weight: 600; color: var(--text-main); transition: background 0.2s; gap: 15px;">
+                      <div class="question-title"
+                        style="display: flex; align-items: flex-start; gap: 10px; font-size: 0.95rem; flex: 1; min-width: 0;">
+                        <i class="fa-regular fa-circle-question"
+                          style="color: var(--secondary); margin-top: 3px; flex-shrink: 0;"></i>
+                        <span style="overflow-wrap: break-word; word-break: break-word; line-height: 1.4;">
+                          <%= q.question %>
+                        </span>
                       </div>
-                      <input type="hidden" name="<%= q.name %>_chances[]" value="0" min="0" max="100" required>
-                      <div class="calc-display">0.00</div>
-                    </li>
-                    <% }) %>
-                </ul>
-                <% if (q.hasOtherOptions) { %>
-                  <div id="<%= q.name %>-other-container" class="other-options-container"></div>
-                  <button type="button" class="btn-secondary add-other-option" data-question="<%= q.name %>">
-                    <i class="fa-solid fa-pen-to-square"></i> Add 'Other' Option
-                  </button>
-                  <% } %>
-                    <div class="chance-total" data-question="<%= q.name %>">
-                      <div class="status-dot"></div> <span class="val">Total: 0%</span>
-                    </div>
+                      <div class="question-meta-mobile"
+                        style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                        <span class="badge" style="font-size: 0.7rem;">
+                          <%= q.type %>
+                        </span>
+                        <i class="fa-solid fa-chevron-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
+                      </div>
+                    </summary>
+                    <div style="padding: 15px; border-top: 1px solid var(--border-color);">
+                      <input type="hidden" name="<%= q.name %>_text" value="<%= q.question %>">
 
-                    <% } else if (q.type==="Checkboxes" ) { %>
-                      <input type="hidden" name="<%= q.name + '_isMultipleChoice[]' %>" value="true">
-                      <ul class="answer-options">
-                        <% q.options.forEach((option, index)=> { %>
-                          <li>
-                            <label>
-                              <%= option %>
-                            </label>
-                            <input type="hidden" name="<%= q.name %>_answers[]" value="<%= option %>">
-                            <div class="percent-input-wrapper">
-                              <input type="number" data-order="<% index %>" data-target-name="<%= q.name %>_chances[]"
-                                value="100" min="0" max="100" required>
+                      <% if (q.type==="Short Answer" ) { %>
+                        <ul class="answer-options">
+                          <li class="option-input"
+                            style="flex-direction: column; align-items: stretch; background: transparent; border: none; padding: 0;">
+                            <textarea name="<%= q.name %>_answers[]" rows="3"
+                              placeholder="Type each possible answer on a new line..." required></textarea>
+                            <input type="hidden" name="<%= q.name %>_chances[]" value="100">
+                            <div style="font-size: 0.8rem; color: var(--accent-success); margin-top: 8px;">
+                              <i class="fa-solid fa-check"></i> Equal random distribution enabled
                             </div>
-                            <input type="hidden" name="<%= q.name %>_chances[]" value="100" min="0" max="100" required>
-                            <div class="calc-display">100.00</div>
                           </li>
-                          <% }) %>
-                      </ul>
-                      <% if (q.hasOtherOptions) { %>
-                        <div id="<%= q.name %>-other-container" class="other-options-container"></div>
-                        <button type="button" class="btn-secondary add-other-option" data-question="<%= q.name %>"><i
-                            class="fa-solid fa-plus"></i> Add Other</button>
-                        <% } %>
-                          <div
-                            style="margin-top:15px; font-size: 0.8rem; color: var(--accent-warning); text-align: center;">
-                            <i class="fa-solid fa-triangle-exclamation"></i> Independent probability per option
+                        </ul>
+
+                        <% } else if (q.type==="Paragraph" ) { %>
+                          <ul class="answer-options">
+                            <li class="option-input">
+                              <textarea name="<%= q.name %>_answers[]" rows="2" placeholder="Possible answer..."
+                                required style="flex:1"></textarea>
+                              <div class="percent-input-wrapper">
+                                <input type="range" data-target-name="<%= q.name %>_chances[]" value="100" min="0"
+                                  max="100">
+                              </div>
+                              <input type="hidden" name="<%= q.name %>_chances[]" value="100" min="0" max="100"
+                                required>
+                              <div class="calc-display">100.00</div>
+                              <button type="button" class="btn-icon remove-option" style="display: none;"><i
+                                  class="fa-solid fa-xmark"></i></button>
+                            </li>
+                          </ul>
+                          <button type="button" class="btn-secondary add-option" data-question="<%= q.name %>">
+                            <i class="fa-solid fa-plus"></i> Add Answer Variant
+                          </button>
+                          <div class="chance-total" data-question="<%= q.name %>">
+                            <div class="status-dot"></div> <span class="val">Total: 0%</span>
                           </div>
 
-                          <% } else if (q.type==="Dropdown" ) { %>
+                          <% } else if (q.type==="Multiple Choice" ) { %>
                             <ul class="answer-options">
                               <% q.options.forEach((option, index)=> { %>
                                 <li>
                                   <label>
-                                    <%= option %>:
+                                    <%= option %>
                                   </label>
                                   <input type="hidden" name="<%= q.name %>_answers[]" value="<%= option %>">
                                   <div class="percent-input-wrapper">
-                                    <input type="number" data-order="<% index %>"
-                                      data-target-name="<%= q.name %>_chances[]" value="0" min="0" max="100" required>
+                                    <input type="range" data-order="<%= index %>"
+                                      data-target-name="<%= q.name %>_chances[]" value="0" min="0" max="100">
                                   </div>
                                   <input type="hidden" name="<%= q.name %>_chances[]" value="0" min="0" max="100"
                                     required>
@@ -959,48 +1134,143 @@
                                 </li>
                                 <% }) %>
                             </ul>
-                            <div class="chance-total" data-question="<%= q.name %>">
-                              <div class="status-dot"></div> <span class="val">Total: 0%</span>
-                            </div>
-
-                            <% } else if (q.type==="Linear Scale" ) { %>
-                              <ul class="answer-options">
-                                <% q.options.forEach((option, index)=> { %>
-                                  <li>
-                                    <label for="<%= q.name + '_opt_' + index %>">
-                                      <%= option %>
-                                    </label>
-                                    <input type="hidden" name="<%= q.name + '_answers[]' %>" value="<%= option %>">
-                                    <div class="percent-input-wrapper">
-                                      <input type="number" data-order="<% index %>"
-                                        data-target-name="<%= q.name %>_chances[]" value="0" min="0" max="100" required>
-                                    </div>
-                                    <input type="hidden" name="<%= q.name %>_chances[]" value="0" min="0" max="100"
-                                      required>
-                                    <div class="calc-display">0.00</div>
-                                  </li>
-                                  <% }) %>
-                              </ul>
-                              <div class="chance-total" data-question="<%= q.name %>">
-                                <div class="status-dot"></div> <span class="val">Total: 0%</span>
-                              </div>
+                            <% if (q.hasOtherOptions) { %>
+                              <div id="<%= q.name %>-other-container" class="other-options-container"></div>
+                              <button type="button" class="btn-secondary add-other-option"
+                                data-question="<%= q.name %>">
+                                <i class="fa-solid fa-pen-to-square"></i> Add 'Other' Option
+                              </button>
                               <% } %>
-        </div>
-        <% }) %>
+                                <div class="chance-total" data-question="<%= q.name %>">
+                                  <div class="status-dot"></div> <span class="val">Total: 0%</span>
+                                </div>
+
+                                <% } else if (q.type==="Checkboxes" ) { %>
+                                  <input type="hidden" name="<%= q.name + '_isMultipleChoice[]' %>" value="true">
+                                  <ul class="answer-options">
+                                    <% q.options.forEach((option, index)=> { %>
+                                      <li>
+                                        <label>
+                                          <%= option %>
+                                        </label>
+                                        <input type="hidden" name="<%= q.name %>_answers[]" value="<%= option %>">
+                                        <div class="percent-input-wrapper">
+                                          <input type="range" data-order="<%= index %>"
+                                            data-target-name="<%= q.name %>_chances[]" value="100" min="0" max="100">
+                                        </div>
+                                        <input type="hidden" name="<%= q.name %>_chances[]" value="100" min="0"
+                                          max="100" required>
+                                        <div class="calc-display">100.00</div>
+                                      </li>
+                                      <% }) %>
+                                  </ul>
+                                  <% if (q.hasOtherOptions) { %>
+                                    <div id="<%= q.name %>-other-container" class="other-options-container"></div>
+                                    <button type="button" class="btn-secondary add-other-option"
+                                      data-question="<%= q.name %>"><i class="fa-solid fa-plus"></i> Add Other</button>
+                                    <% } %>
+                                      <div
+                                        style="margin-top:15px; font-size: 0.8rem; color: var(--accent-warning); text-align: center;">
+                                        <i class="fa-solid fa-triangle-exclamation"></i> Independent probability per
+                                        option
+                                      </div>
+
+                                      <% } else if (q.type==="Dropdown" ) { %>
+                                        <ul class="answer-options">
+                                          <% q.options.forEach((option, index)=> { %>
+                                            <li>
+                                              <label>
+                                                <%= option %>:
+                                              </label>
+                                              <input type="hidden" name="<%= q.name %>_answers[]" value="<%= option %>">
+                                              <div class="percent-input-wrapper">
+                                                <input type="range" data-order="<%= index %>"
+                                                  data-target-name="<%= q.name %>_chances[]" value="0" min="0"
+                                                  max="100">
+                                              </div>
+                                              <input type="hidden" name="<%= q.name %>_chances[]" value="0" min="0"
+                                                max="100" required>
+                                              <div class="calc-display">0.00</div>
+                                            </li>
+                                            <% }) %>
+                                        </ul>
+                                        <div class="chance-total" data-question="<%= q.name %>">
+                                          <div class="status-dot"></div> <span class="val">Total: 0%</span>
+                                        </div>
+
+                                        <% } else if (q.type==="Linear Scale" ) { %>
+                                          <% if (q.linearScaleLabels && (q.linearScaleLabels[0] ||
+                                            q.linearScaleLabels[1])) { %>
+                                            <div class="linear-scale-container">
+                                              <div class="scale-labels-header">
+                                                <div class="scale-label-badge scale-label-start"
+                                                  style="<%= !q.linearScaleLabels[0] ? 'visibility:hidden' : '' %>">
+                                                  <i class="fa-solid fa-arrow-down-long" style="margin-right:5px"></i>
+                                                  <%= q.linearScaleLabels[0] || 'Low' %>
+                                                </div>
+                                                <div class="scale-label-badge scale-label-end"
+                                                  style="<%= !q.linearScaleLabels[1] ? 'visibility:hidden' : '' %>">
+                                                  <%= q.linearScaleLabels[1] || 'High' %> <i
+                                                      class="fa-solid fa-arrow-up-long" style="margin-left:5px"></i>
+                                                </div>
+                                              </div>
+                                              <ul class="scale-options-list" style="list-style: none; padding: 0;">
+                                                <% } else { %>
+                                                  <ul class="answer-options">
+                                                    <% } %>
+
+                                                      <% q.options.forEach((option, index)=> { %>
+                                                        <li
+                                                          style="display: flex; align-items: center; gap: 10px; padding: 5px 0;">
+                                                          <div
+                                                            style="width: 30px; text-align: center; font-weight: bold; color: var(--text-muted); font-size: 0.9rem;">
+                                                            <%= option %>
+                                                          </div>
+                                                          <input type="hidden" name="<%= q.name + '_answers[]' %>"
+                                                            value="<%= option %>">
+                                                          <div class="percent-input-wrapper">
+                                                            <input type="range" data-order="<%= index %>"
+                                                              data-target-name="<%= q.name %>_chances[]" value="0"
+                                                              min="0" max="100">
+                                                          </div>
+                                                          <input type="hidden" name="<%= q.name %>_chances[]" value="0"
+                                                            min="0" max="100" required>
+                                                          <div class="calc-display">0.00</div>
+                                                        </li>
+                                                        <% }) %>
+
+                                                          <% if (q.linearScaleLabels && (q.linearScaleLabels[0] ||
+                                                            q.linearScaleLabels[1])) { %>
+                                                  </ul>
+                                            </div>
+                                            <% } else { %>
+                                              </ul>
+                                              <% } %>
+                                                <div class="chance-total" data-question="<%= q.name %>">
+                                                  <div class="status-dot"></div> <span class="val">Total: 0%</span>
+                                                </div>
+                                                <% } %>
+                    </div>
+                  </details>
+                  <% }) %>
+
+            </div>
+          </details>
+          <!-- End Page Sections -->
 
           <!-- Footer Form Action -->
-          <div class="glass-panel"
-            style="display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; padding: 30px;">
+          <div class="glass-panel form-footer">
             <div class="input-group" style="flex: 0 0 auto;">
-              <label style="margin-bottom: 8px; display: block; white-space: nowrap;">Response Count</label>
+              <label style="margin-bottom: 6px; display: block; white-space: nowrap; font-size: 0.8rem;">Response
+                Count</label>
               <input type="number" name="respondCount" value="1" min="1"
-                style="text-align: center; font-weight: 700; height: 54px; font-size: 1.2rem; border-color: rgba(255,255,255,0.15); width: 120px;">
+                style="text-align: center; font-weight: 700; height: 42px; font-size: 1rem; border-color: rgba(255,255,255,0.15); width: 100px;">
             </div>
-            <button type="submit" class="submit-btn" style="flex: 1; height: 54px;">
+            <button type="submit" class="submit-btn" style="flex: 1; height: 42px;">
               <i class="fa-solid fa-rocket"></i> Save Probabilities & Generate Preview
             </button>
           </div>
-    </form>
+        </form>
   </div>
 
   <!-- MODAL -->
@@ -1022,10 +1292,50 @@
 
         <form id="executeForm" action="/execute-links" method="POST">
           <div id="hiddenUrlInputs"></div>
+
+          <!-- MAIN ACTION -->
           <button type="submit" class="submit-btn submit-btn-full"
-            style="background: var(--secondary); box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);">
-            <i class="fa-solid fa-play"></i> Execute Links
+            style="background: var(--secondary); box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3); margin-bottom: 20px;">
+            <i class="fa-solid fa-play"></i> Start Execution
           </button>
+
+          <!-- ADVANCED SETTINGS (COLLAPSIBLE) -->
+          <details style="background: rgba(0,0,0,0.1); border-radius: 8px; border: 1px solid var(--border-color);">
+            <summary
+              style="padding: 12px; cursor: pointer; font-size: 0.9rem; color: var(--text-muted); user-select: none;">
+              <i class="fa-solid fa-sliders"></i> Advanced Settings (Speed & Concurrency)
+            </summary>
+            <div
+              style="padding: 15px; border-top: 1px solid var(--border-color); display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <div class="input-group" style="margin-bottom: 0;">
+                <label style="font-size: 0.8rem; color: var(--text-main); margin-bottom: 5px; display:block;">
+                  <i class="fa-solid fa-bolt"></i> Threads
+                </label>
+                <input type="number" name="concurrency" value="5" min="1" max="50"
+                  style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--input-border); background: var(--bg-input); color: var(--text-main);">
+                <div style="font-size: 0.7rem; color: #666; margin-top: 4px;">Parallel tabs</div>
+              </div>
+
+              <div class="input-group" style="margin-bottom: 0;">
+                <label style="font-size: 0.8rem; color: var(--text-main); margin-bottom: 5px; display:block;">
+                  <i class="fa-solid fa-clock"></i> Delay (ms)
+                </label>
+                <input type="number" name="delay" value="1000" min="100" step="100"
+                  style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--input-border); background: var(--bg-input); color: var(--text-main);">
+                <div style="font-size: 0.7rem; color: #666; margin-top: 4px;">Wait per request</div>
+              </div>
+
+              <div class="input-group" style="margin-bottom: 0; grid-column: span 2;">
+                <label style="font-size: 0.8rem; color: var(--text-main); margin-bottom: 5px; display:block;">
+                  <i class="fa-solid fa-file-lines"></i> Force Page Count (Manual)
+                </label>
+                <input type="number" name="manualPageCount" value="<%= pageCount %>" min="0" max="20" placeholder="Auto"
+                  style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--input-border); background: var(--bg-input); color: var(--text-main);">
+                <div style="font-size: 0.7rem; color: #666; margin-top: 4px;">Detected: <%= pageCount %> (Index start
+                    0). Change to override.</div>
+              </div>
+            </div>
+          </details>
         </form>
 
         <ul id="urlListPreview"
@@ -1083,22 +1393,65 @@
       });
     }));
 
-    function handleInputChange(input, allInputs) {
-      let parentLi = input.closest('li');
-      const totalInputs = Array.from(allInputs).length;
-      const total = Array.from(allInputs).reduce((sum, inp) => sum + (parseFloat(inp.value) || 0), 0);
+    function handleInputChange(activeInput, allInputs) {
+      const inputs = Array.from(allInputs);
+      const otherInputs = inputs.filter(i => i !== activeInput);
 
-      allInputs.forEach((inp) => {
-        let container = inp.closest('li');
-        let displayDiv = container.querySelector(".calc-display");
-        let rawVal = parseFloat(inp.value) || 0;
-        let chance = total === 0 ? 0 : ((rawVal / total) * 100).toFixed(2);
+      let activeVal = parseFloat(activeInput.value) || 0;
+      // Clamp
+      if (activeVal < 0) activeVal = 0;
+      if (activeVal > 100) activeVal = 100;
+      activeInput.value = activeVal; // Update active input value after clamping
 
-        let hiddenTarget = container.querySelector(`[name="${inp.getAttribute('data-target-name')}"]`);
-        if (hiddenTarget) hiddenTarget.value = chance;
+      // Calculate remaining pool for others
+      const remaining = 100 - activeVal;
 
-        if (displayDiv) displayDiv.textContent = `${chance}`;
+      // Current sum of others (before adjustment)
+      const currentSumOthers = otherInputs.reduce((sum, inp) => sum + (parseFloat(inp.value) || 0), 0);
+
+      // Distribute remaining
+      otherInputs.forEach(inp => {
+        let currentVal = parseFloat(inp.value) || 0;
+        let newVal;
+
+        if (currentSumOthers > 0) {
+          // Proportional share
+          newVal = (currentVal / currentSumOthers) * remaining;
+        } else {
+          // If all others were 0, distribute remaining equally
+          newVal = remaining / otherInputs.length;
+        }
+
+        // Update input directly
+        inp.value = newVal;
       });
+
+      // Update Visuals & Hidden Data for ALL inputs
+      inputs.forEach(inp => {
+        let container = inp.closest('li, .other-option, .option-input');
+        if (!container) return;
+
+        let val = parseFloat(inp.value) || 0;
+
+        // Update Display Text
+        let displayDiv = container.querySelector(".calc-display");
+        if (displayDiv) displayDiv.textContent = val.toFixed(2);
+
+        // Update Hidden Input (that gets sent to server)
+        // Find the corresponding hidden input by name pattern
+        const hiddenInputName = inp.getAttribute('data-target-name');
+        if (hiddenInputName) {
+          const hiddenTarget = container.querySelector(`input[type="hidden"][name="${hiddenInputName}"]`);
+          if (hiddenTarget) hiddenTarget.value = val.toFixed(2);
+        }
+
+        // Update Slider Fill (Visual Realism)
+        if (inp.type === 'range') {
+          let percentage = ((val - inp.min) / (inp.max - inp.min)) * 100;
+          inp.style.background = `linear-gradient(90deg, var(--secondary) ${percentage}%, var(--bg-input) ${percentage}%)`;
+        }
+      });
+
       updateChanceTotals();
     }
 
@@ -1113,9 +1466,9 @@
         newOption.innerHTML = `
         <textarea name="${questionName}_answers[]" rows="2" placeholder="Variant answer..." required style="flex:1"></textarea>
         <div class="percent-input-wrapper">
-             <input type="number" data-target-name="${questionName}_chances[]" value="0" min="0" max="100" required>
+             <input type="range" data-target-name="${questionName}_chances[]" value="0" min="0" max="100" required>
         </div>
-        <input type="hidden" data-other-option name="${questionName}_chances[]" value="0" min="0" max="100" required>
+        <input type="hidden" name="${questionName}_chances[]" value="0" min="0" max="100" required>
         <div class="calc-display">0.00</div>
         <button type="button" class="btn-icon remove-option btn-remove" data-question="${questionName}"><i class="fa-solid fa-xmark"></i></button>
       `;
@@ -1148,37 +1501,43 @@
         newOption.className = 'other-option';
         newOption.innerHTML = `
         <i class="fa-solid fa-pen" style="color:#666"></i>
-        <input type="text" name="${questionName}_answers[]" placeholder="Other Answer..." required style="flex:1">
+        <textarea name="${questionName}_answers[]" rows="2" placeholder="Other Answer (One per line for variants)..." required style="flex:1; background: var(--bg-input); border: 1px solid var(--input-border); color: var(--text-main); border-radius: 12px; padding: 10px;"></textarea>
         <input type="hidden" data-answer-other-option name="${questionName}.other_option_response[]" required>
         <input type="hidden" name="${questionName}.is_other_option[]" value="__other_option__" required>
         
         <div class="percent-input-wrapper">
-             <input type="number" data-target-name="${questionName}_chances[]" value="0" min="0" max="100" required>
+             <input type="range" data-target-name="${questionName}_chances[]" value="0" min="0" max="100" required>
         </div>
-        <input type="hidden" data-other-option name="${questionName}_chances[]" value="0" min="0" max="100" required>
+        <input type="hidden" name="${questionName}_chances[]" value="0" min="0" max="100" required>
         <div class="calc-display">0.00</div>
         <button type="button" class="btn-icon remove-option btn-remove" data-question="${questionName}"><i class="fa-solid fa-xmark"></i></button>
       `;
         otherContainer.appendChild(newOption);
 
-        newOption.querySelector(`input[name="${questionName}_answers[]"]`).addEventListener('input', function (e) {
+        newOption.querySelector(`textarea[name="${questionName}_answers[]"]`).addEventListener('input', function (e) {
           newOption.querySelector(`input[data-answer-other-option]`).value = this.value;
         });
 
-        let currentAllInputs = [
+        // Helper to get all inputs
+        const getAllInputs = () => [
           ...Array.from(listContainer.querySelectorAll('input[data-target-name]')),
           ...Array.from(otherContainer.querySelectorAll('input[data-target-name]'))
         ];
-        newOption.querySelector('input[data-target-name]').addEventListener('input', function (e) {
-          let updatedInputs = [
-            ...Array.from(listContainer.querySelectorAll('input[data-target-name]')),
-            ...Array.from(otherContainer.querySelectorAll('input[data-target-name]'))
-          ];
-          handleInputChange(this, updatedInputs);
+
+        // Bind this new input
+        const wrapper = newOption.querySelector('input[data-target-name]');
+        wrapper.addEventListener('input', function (e) {
+          handleInputChange(this, getAllInputs());
         });
+
+        // Trigger update to fix 0% -> NaN or legitimate split
+        handleInputChange(wrapper, getAllInputs());
 
         newOption.querySelector('.remove-option').addEventListener('click', function () {
           this.parentElement.remove();
+          // Force update/recalc
+          const currentInputs = getAllInputs();
+          if (currentInputs.length > 0) handleInputChange(currentInputs[0], currentInputs);
           updateChanceTotals();
         });
         updateChanceTotals();
@@ -1315,22 +1674,29 @@
         Chart.defaults.font.family = "'Space Grotesk', sans-serif";
 
         const chart = new Chart(canvas, {
-          type: 'pie',
+          type: 'bar',
           data: {
-            labels: labels,
+            labels: rawLabels, // Use raw labels without % for bar chart axis
             datasets: [{
               label: stat._questionText || key,
               data: values,
               backgroundColor: toonColors,
-              borderWidth: 0,
-              hoverOffset: 10
+              borderColor: 'rgba(0,0,0,0.1)',
+              borderWidth: 1,
+              borderRadius: 4
             }]
           },
           options: {
+            // indexAxis: 'y', // Removed for vertical
             responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { beginAtZero: true, grid: { color: '#333' } },
+              y: { grid: { display: false } }
+            },
             plugins: {
-              legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, pointStyle: 'circle' } },
-              title: { display: true, text: stat._questionText || key, font: { size: 14, weight: 'bold' }, padding: { bottom: 20 } }
+              legend: { display: false },
+              title: { display: true, text: stat._questionText || key, font: { size: 14, weight: 'bold' }, padding: { bottom: 20 }, color: '#fff' }
             }
           }
         });
@@ -1399,6 +1765,245 @@
       if (e.target === tutorialModal) closeTutorial();
       if (e.target === resultModal) resultModal.style.display = 'none';
     });
+
+
+    // --- PERSISTENT TOAST LOGIC ---
+    // Polls /job-status every 1s
+    const toast = document.createElement('div');
+    toast.id = 'statusToast';
+    // Use theme variables for background/color
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: var(--bg-panel); 
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--secondary);
+        padding: 15px 20px;
+        border-radius: 12px;
+        color: var(--text-main);
+        font-family: 'Space Grotesk', sans-serif;
+        display: none;
+        align-items: center;
+        gap: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+        backdrop-filter: blur(10px);
+        z-index: 9999;
+        min-width: 320px;
+    `;
+    toast.innerHTML = `
+        <i class="fa-solid fa-circle-notch fa-spin" style="color: var(--secondary); font-size: 1.5rem;"></i>
+        <div style="flex: 1;">
+            <div style="font-weight: bold; margin-bottom: 4px;">Processing...</div>
+            <div id="toastStatus" style="font-size: 0.85rem; color: #aaa;">0/0 Requests</div>
+            <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); margin-top: 8px; border-radius: 2px; overflow: hidden;">
+                <div id="toastBar" style="width: 0%; height: 100%; background: var(--secondary); transition: width 0.3s ease;"></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(toast);
+
+    let isPolling = false;
+
+    function startPolling() {
+      if (isPolling) return;
+      isPolling = true;
+      pollStatus();
+    }
+
+    async function pollStatus() {
+      try {
+        const res = await fetch('/job-status');
+        const job = await res.json();
+
+        const toastEl = document.getElementById('statusToast');
+        const statusText = document.getElementById('toastStatus');
+        const bar = document.getElementById('toastBar');
+
+        if (job.isRunning) {
+          toastEl.style.display = 'flex';
+          // Calculate percentage
+          const pct = job.total > 0 ? (job.current / job.total) * 100 : 0;
+
+          statusText.innerHTML = `
+                    <span style="color:white">${job.current}</span> / ${job.total} 
+                    <span style="color:var(--accent-success)">(${job.success} OK)</span> 
+                    <span style="color:var(--accent-danger)">(${job.fail} Fail)</span>
+                `;
+          bar.style.width = pct + '%';
+
+          setTimeout(pollStatus, 1000);
+        } else {
+          // Job finished or not running
+          if (toastEl.style.display === 'flex') {
+            // Just finished?
+            bar.style.width = '100%';
+            statusText.textContent = `Completed: ${job.success} Success, ${job.fail} Failed`;
+
+            // Hide after 5 seconds
+            setTimeout(() => {
+              toastEl.style.display = 'none';
+              isPolling = false;
+            }, 5000);
+          } else {
+            isPolling = false;
+          }
+        }
+      } catch (e) {
+        console.error("Poll error", e);
+        setTimeout(pollStatus, 2000);
+      }
+    }
+
+    // Start polling on load (Persistence!)
+    startPolling();
+
+    // INTERCEPT EXECUTE FORM
+    document.getElementById('executeForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const btn = this.querySelector('button');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Started';
+      btn.disabled = true;
+
+      const formData = new FormData(this);
+      // Convert to JSON
+      const data = {};
+      formData.forEach((value, key) => data[key] = value);
+      // Fix array inputs manually
+      const jsonPayload = {
+        urls: Array.from(formData.getAll('urls[]')),
+        concurrency: formData.get('concurrency'),
+        delay: formData.get('delay'),
+        manualPageCount: formData.get('manualPageCount'),
+        pageHistoryStr: formData.get('pageHistoryStr') // Pass explicit IDs
+      };
+
+      try {
+        await fetch('/execute-links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(jsonPayload)
+        });
+
+        // Close modal immediately and let Toast take over
+        document.getElementById('resultModal').style.display = 'none';
+        startPolling();
+
+      } catch (err) {
+        alert('Error starting job: ' + err.message);
+      } finally {
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+        }, 2000);
+      }
+    });
+
+    // --- PERSISTENCE LOGIC (AUTO SAVE/LOAD) ---
+    const STORAGE_KEY_PREFIX = 'nodegfr_form_data_';
+    const formUrl = document.querySelector('input[name="url"]').value;
+    const storageKey = STORAGE_KEY_PREFIX + btoa(formUrl).substring(0, 32); // Simple encoding for key
+
+    function saveFormState() {
+      const formData = {};
+
+      // Save standard inputs
+      document.querySelectorAll('#probabilityForm input, #probabilityForm textarea, #probabilityForm select').forEach(input => {
+        if (!input.name) return;
+        // Handle array names slightly differently or just store all values
+        if (!formData[input.name]) {
+          formData[input.name] = [];
+        }
+        formData[input.name].push(input.value);
+      });
+
+      // Store specialized flags for reconstruction
+      const dynamicCounts = {};
+      document.querySelectorAll('.question-container').forEach(q => {
+        const qName = q.querySelector('input[name$="_text"]').name.replace('_text', '');
+        // Count other options
+        const otherCount = q.querySelectorAll('.other-option').length;
+        // Count paragraph variants?
+        const answerOptions = q.querySelectorAll('.answer-options li').length;
+        dynamicCounts[qName] = { otherCount, answerOptions };
+      });
+
+      localStorage.setItem(storageKey, JSON.stringify({
+        timestamp: Date.now(),
+        data: formData,
+        structure: dynamicCounts
+      }));
+    }
+
+    // Debounced save
+    let saveTimeout;
+    document.getElementById('probabilityForm').addEventListener('input', () => {
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(saveFormState, 500);
+    });
+
+    async function restoreFormState() {
+      const saved = localStorage.getItem(storageKey);
+      if (!saved) return;
+
+      try {
+        const parsed = JSON.parse(saved);
+        const data = parsed.data;
+        const structure = parsed.structure;
+
+        // 1. Reconstruct Structure (Click buttons)
+        if (structure) {
+          for (const [qName, counts] of Object.entries(structure)) {
+            const qContainer = document.querySelector(`.add-other-option[data-question="${qName}"]`)?.closest('.question-container');
+            if (!qContainer) continue;
+
+            const addOtherBtn = qContainer.querySelector(`.add-other-option[data-question="${qName}"]`);
+            if (addOtherBtn && counts.otherCount > 0) {
+              // Current count?
+              const currentOthers = qContainer.querySelectorAll('.other-option').length;
+              for (let i = currentOthers; i < counts.otherCount; i++) {
+                addOtherBtn.click();
+              }
+            }
+          }
+        }
+
+        // Wait for DOM updates from clicks
+        await new Promise(r => setTimeout(r, 50));
+
+        // 2. Restore Values
+        for (const [name, values] of Object.entries(data)) {
+          const inputs = document.querySelectorAll(`[name="${name}"]`);
+          inputs.forEach((input, index) => {
+            if (values[index] !== undefined) {
+              input.value = values[index];
+              // Trigger input event to update percentages/UI
+              input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          });
+        }
+        console.log("Form state restored");
+      } catch (e) {
+        console.error("Failed to restore form state", e);
+      }
+    }
+
+    // Run restore on load
+    window.addEventListener('DOMContentLoaded', restoreFormState);
+
+    // --- LOGIC: AUTO-OPEN ACCORDION ON VALIDATION ERROR ---
+    // HTML5 validation doesn't work well with collapsed <details>. 
+    // This listener catches the 'invalid' event (which doesn't bubble, so we use capture phase)
+    // and opens the containing accordion so the browser can focus the element and show the error.
+    document.addEventListener('invalid', (e) => {
+      let details = e.target.closest('details');
+      while (details) {
+        details.open = true;
+        details = details.parentElement ? details.parentElement.closest('details') : null;
+      }
+    }, true);
   </script>
 </body>
 

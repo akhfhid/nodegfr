@@ -763,20 +763,19 @@
             border-radius: 10px;
             border: 2px solid transparent;
             background-clip: content-box;
+            -webkit-background-clip: content-box;
         }
 
         ::-webkit-scrollbar-thumb:hover {
             background: var(--primary);
             background-clip: content-box;
+            -webkit-background-clip: content-box;
         }
 
+        /* MOBILE RESPONSIVE */
         @media (max-width: 768px) {
             .hero h1 {
                 font-size: 2.5rem;
-            }
-
-            nav {
-                display: none;
             }
 
             .orb-1 {
@@ -798,6 +797,68 @@
 
             .pill-input-container button {
                 width: 100%;
+            }
+
+            .pill-input-container {
+                border-radius: 20px;
+                width: 100%;
+                padding: 5px;
+            }
+
+            .pill-input-container button {
+                padding: 12px 20px;
+                font-size: 0.9rem;
+            }
+
+            .header-inner {
+                padding: 10px 15px;
+                gap: 5px;
+            }
+
+            .logo {
+                font-size: 1.1rem;
+                gap: 6px;
+                flex-shrink: 0;
+            }
+
+            nav {
+                gap: 10px;
+                flex-wrap: nowrap;
+            }
+
+            nav a {
+                font-size: 0.75rem;
+                white-space: nowrap;
+            }
+
+            .theme-switch {
+                width: 50px;
+                height: 26px;
+                flex-shrink: 0;
+            }
+
+            .slider:before {
+                height: 18px;
+                width: 18px;
+                bottom: 3px;
+            }
+
+            input:checked+.slider:before {
+                transform: translateX(24px);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .logo span {
+                font-size: 0.9rem;
+            }
+
+            nav {
+                gap: 6px;
+            }
+
+            nav a {
+                font-size: 0.7rem;
             }
         }
     </style>
