@@ -12,6 +12,9 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <!-- Midtrans Snap -->
+    <script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js"
+        data-client-key="SB-Mid-client-Z8Geia9rIWaHRfHP"></script>
     <style>
         :root {
             --bg-deep: #050505;
@@ -67,6 +70,7 @@
             overflow-x: hidden;
             min-height: 100vh;
             position: relative;
+            transition: background-color 0.5s ease, color 0.5s ease;
         }
 
         .ambient-bg {
@@ -78,14 +82,18 @@
             z-index: -1;
             overflow: hidden;
             background: var(--bg-deep);
+            transition: background 0.5s ease;
         }
 
         .orb {
             position: absolute;
             border-radius: 50%;
-            filter: blur(80px);
-            opacity: 0.6;
+            filter: blur(30px);
+            opacity: 0.35;
             animation: floatOrb 20s infinite ease-in-out;
+            will-change: transform;
+            transform: translateZ(0);
+            transition: background 0.5s ease, opacity 0.5s ease;
         }
 
         .orb-1 {
@@ -113,8 +121,8 @@
             background: #d946ef;
             top: 40%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            opacity: 0.3;
+            transform: translate(-50%, -50%) translateZ(0);
+            opacity: 0.2;
             animation: pulseOrb 15s infinite ease-in-out;
         }
 
@@ -169,12 +177,13 @@
         /* --- GLASS COMPONENTS --- */
         .glass-panel {
             background: var(--bg-card);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             border: 1px solid var(--border-color);
             border-radius: var(--border-radius);
             box-shadow: 0 4px 24px var(--shadow-soft);
             transition: var(--transition);
+            will-change: transform;
         }
 
         header {
@@ -183,9 +192,10 @@
             z-index: 100;
             width: 100%;
             background: var(--header-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
             border-bottom: 1px solid var(--header-border);
+            will-change: transform;
         }
 
         .header-inner {
@@ -258,6 +268,35 @@
 
         nav a:hover::after {
             width: 100%;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 5px 15px 5px 5px;
+            border-radius: 50px;
+            border: 1px solid var(--border-color);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .user-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .btn-logout {
+            color: var(--accent-danger);
+            font-size: 0.85rem;
+            text-decoration: none;
+            margin-left: 10px;
         }
 
         /* Theme Toggle Slider */
@@ -388,6 +427,8 @@
             font-size: 1.1rem;
             padding: 0 24px;
             font-family: inherit;
+            min-width: 0;
+            text-overflow: ellipsis;
         }
 
         .pill-input-container input::placeholder {
@@ -570,9 +611,10 @@
         }
 
         .btn-select:hover {
-            background: var(--text-main);
-            color: #fff;
-            border-color: var(--text-main);
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
         }
 
         .package-card.active {
@@ -661,8 +703,8 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             align-items: center;
             justify-content: center;
         }
@@ -701,9 +743,9 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(5, 5, 5, 0.85);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: rgba(5, 5, 5, 0.9);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             display: none;
             flex-direction: column;
             align-items: center;
@@ -861,6 +903,69 @@
                 font-size: 0.7rem;
             }
         }
+
+        /* --- MOBILE USER BAR --- */
+        .mobile-user-bar {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--header-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid var(--border-color);
+            padding: 12px 20px;
+            z-index: 9999;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (max-width: 768px) {
+
+            nav .user-menu,
+            nav .btn-login,
+            nav .user-name {
+                display: none !important;
+            }
+
+            .mobile-user-bar {
+                display: flex;
+            }
+
+            /* Prevent content from being hidden behind bottom bar */
+            body {
+                padding-bottom: 80px;
+            }
+        }
+
+        /* --- HERO LOGIN BTN --- */
+        .btn-login-hero {
+            background: var(--text-main);
+            color: var(--bg-deep);
+            padding: 12px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 10px 25px -5px rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-login-hero:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px -5px rgba(255, 255, 255, 0.4);
+        }
+
+        .light-theme .btn-login-hero {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 10px 25px -5px rgba(124, 58, 237, 0.3);
+        }
     </style>
 </head>
 
@@ -896,6 +1001,25 @@
                 <a href="#features">Features</a>
                 <a href="#pricelist">Pricelist</a>
                 <a href="#" onclick="openTutorial(); return false;">Tutorial</a>
+                <% if (locals.user) { %>
+                    <div class="user-menu" style="display:inline-flex; align-items:center; gap:10px; margin-left:15px;">
+                        <img src="/user/avatar?v=<%= user.id %>" alt="Avatar" class="user-avatar"
+                            style="width:32px;height:32px;border-radius:50%;" referrerpolicy="no-referrer"
+                            onerror="this.src='https://ui-avatars.com/api/?name=<%= user.name %>'">
+                        <span class="user-name">
+                            <%= user.name.split(' ')[0] %></span>
+                        <div class="user-balance" style="background: var(--bg-deep); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border-color); font-size: 0.8rem; margin-left: 5px;">
+                            <i class="fa-solid fa-coins" style="color: gold; margin-right: 5px;"></i> <%= user.tokenBalance || 0 %>
+                        </div>
+                <a href="#" class="btn-logout" title="Logout" onclick="openLogoutModal(); return false;"><i class="fa-solid fa-right-from-bracket"></i></a>
+                    </div>
+                    <% } else { %>
+                        <a href="/auth/google" class="btn-login"
+                            style="margin-left:15px; background:white; color:#333; padding:8px 16px; border-radius:50px; text-decoration:none; font-size:0.9rem; font-weight:600; display:inline-flex; align-items:center; gap:8px; border: 1px solid #ddd;">
+                            <img src="https://www.google.com/favicon.ico" alt="G" style="width:16px; height:16px;">
+                            Login
+                        </a>
+                        <% } %>
             </nav>
         </div>
     </header>
@@ -906,6 +1030,29 @@
             <h1>Make life easier with <strong>Autofill</strong></h1>
             <p class="tagline">Finish your questionnaire in just one click. Fast, secure, and fully automated for your
                 needs.</p>
+
+            <% if (!locals.user) { %>
+                <div style="margin-bottom: 25px; width: 100%; display: flex; justify-content: center;">
+                    <a href="/auth/google" class="btn-login-hero">
+                        <img src="https://www.google.com/favicon.ico" alt="G" style="width:20px; height:20px;">
+                        Sign In with Google
+                    </a>
+                </div>
+            <% } else { %>
+                <div style="margin-bottom: 25px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 15px;">
+                    <img src="/user/avatar?v=<%= user.id %>" alt="Avatar" 
+                        style="width:48px; height:48px; border-radius:50%; border: 2px solid var(--primary); box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);"
+                        referrerpolicy="no-referrer"
+                        onerror="this.src='https://ui-avatars.com/api/?name=<%= user.name %>'">
+                    <div style="text-align: left;">
+                        <div style="font-weight: 700; font-size: 1.1rem; color: var(--text-main);"><%= user.name %></div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-coins" style="color: gold;"></i> 
+                            <span><%= user.tokenBalance || 0 %> Tokens</span>
+                        </div>
+                    </div>
+                </div>
+            <% } %>
 
             <div class="pill-input-container">
                 <input id="formurl" type="text" placeholder="Paste your Google Form link here..." autocomplete="off">
@@ -940,17 +1087,17 @@
         <section class="trial" id="pricelist">
             <div class="section-header">
                 <h2>Pricelist</h2>
-                <p>Get 5 Free Respondents for New Registration!</p>
+                <p>Pilih jumlah responden sesuai kebutuhan Anda. Makin banyak, makin murah!</p>
             </div>
 
             <div class="packages-grid">
                 <!-- Paket 1 -->
                 <div class="glass-panel package-card">
                     <span class="package-range">Starter</span>
-                    <div class="package-number">50–99</div>
+                    <div class="package-number">1–99</div>
                     <p style="color:var(--text-muted); margin-bottom:20px;">Respondents</p>
                     <div class="package-price">Rp <b>500</b> /pcs</div>
-                    <button class="btn-select">Pilih Paket</button>
+                    <button class="btn-select" onclick="openPurchaseModal(50)">Beli Paket</button>
                 </div>
 
                 <!-- Paket 2 (Active) -->
@@ -960,7 +1107,8 @@
                     <div class="package-number">100–299</div>
                     <p style="color:var(--text-muted); margin-bottom:20px;">Respondents</p>
                     <div class="package-price">Rp <b>400</b> /pcs</div>
-                    <button class="btn-select">Pilih Paket</button>
+                    <button class="btn-select" onclick="openPurchaseModal(100)">Beli Paket</button>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">*Lebih hemat 20%</div>
                 </div>
 
                 <!-- Paket 3 -->
@@ -969,7 +1117,8 @@
                     <div class="package-number">300–700</div>
                     <p style="color:var(--text-muted); margin-bottom:20px;">Respondents</p>
                     <div class="package-price">Rp <b>350</b> /pcs</div>
-                    <button class="btn-select">Pilih Paket</button>
+                    <button class="btn-select" onclick="openPurchaseModal(300)">Beli Paket</button>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">*Lebih hemat 30%</div>
                 </div>
             </div>
         </section>
@@ -982,118 +1131,279 @@
             </div>
             <p class="copyright">© 2026 AUTOFILL COMMAND CENTER - ALL RIGHTS RESERVED</p>
         </footer>
-    </div>
+        </div>
 
-    <!-- TUTORIAL MODAL -->
-    <div id="tutorialModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeTutorial()">&times;</span>
-            <h2 style="color: var(--primary); margin-bottom: 15px;">
-                <i class="fa-solid fa-book-open" style="color: var(--secondary)"></i> Tutorial Cara Salin Link
-            </h2>
-            <div class="tutorial-body" style="color: #ccc; line-height: 1.6;">
-                <p>Tutorial content will be added here soon...</p>
-                <!-- User will provide actual content later -->
+        <!-- TUTORIAL MODAL -->
+        <div id="tutorialModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeTutorial()">&times;</span>
+                <h2 style="color: var(--primary); margin-bottom: 15px;">
+                    <i class="fa-solid fa-book-open" style="color: var(--secondary)"></i> Tutorial Cara Salin Link
+                </h2>
+                <div class="tutorial-body" style="color: #ccc; line-height: 1.6;">
+                    <p>Tutorial content will be added here soon...</p>
+                    <!-- User will provide actual content later -->
+                </div>
             </div>
         </div>
-    </div>
+
+        <!-- LOGOUT MODAL -->
+        <div id="logoutModal" class="modal">
+            <div class="modal-content" style="max-width: 400px; text-align: center;">
+                <span class="close" onclick="closeLogoutModal()">&times;</span>
+                <div style="margin-bottom: 20px;">
+                    <i class="fa-solid fa-right-from-bracket"
+                        style="font-size: 3rem; color: var(--accent-danger, #ef4444); background: rgba(239, 68, 68, 0.1); padding: 20px; border-radius: 50%;"></i>
+                </div>
+                <h2 style="margin-bottom: 10px;">Sign Out?</h2>
+                <p style="color: var(--text-muted); margin-bottom: 25px;">Are you sure you want to sign out of your
+                    account?</p>
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button onclick="closeLogoutModal()"
+                        style="background: transparent; border: 1px solid var(--border-color); color: var(--text-main); padding: 10px 24px; border-radius: 50px; cursor: pointer; font-weight: 600;">Cancel</button>
+                    <a href="/logout"
+                        style="background: var(--accent-danger, #ef4444); color: white; padding: 10px 24px; border-radius: 50px; text-decoration: none; font-weight: 600; display: inline-block;">Yes,
+                        Sign Out</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- PURCHASE MODAL -->
+        <div id="purchaseModal" class="modal">
+            <div class="modal-content" style="max-width: 500px; padding: 30px;">
+                <span class="close" onclick="closePurchaseModal()">&times;</span>
+                <h2 style="margin-bottom: 20px; text-align: center;">Beli Token</h2>
+
+                <div style="margin-bottom: 25px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600;">Jumlah Responden</label>
+                    <input type="number" id="modalTokenInput" min="1" max="700" value="100" oninput="updateModalPrice()"
+                        style="width: 100%; padding: 15px; background: var(--bg-deep); border: 2px solid var(--border-color); border-radius: 12px; font-size: 1.2rem; color: var(--text-main); font-weight: bold;">
+                    <div
+                        style="margin-top: 10px; font-size: 0.9rem; color: var(--text-muted); display: flex; justify-content: space-between;">
+                        <span id="modalRateDisplay">Harga: Rp 400 / resp</span>
+                        <span>Min: 1 - Max: 700</span>
+                    </div>
+                </div>
+
+                <div
+                    style="background: var(--bg-deep); padding: 20px; border-radius: 15px; border: 1px solid var(--border-color); margin-bottom: 25px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <span style="color: var(--text-muted);">Total Token</span>
+                        <span style="font-weight: 700;" id="modalTokenCount">100 pcs</span>
+                    </div>
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 5px;">
+                        <span style="font-weight: 600;">Total Harga</span>
+                        <span style="font-size: 1.5rem; font-weight: 800; color: var(--primary);"
+                            id="modalTotalPrice">Rp 40.000</span>
+                    </div>
+                </div>
+
+                <button onclick="confirmPurchase()"
+                    style="width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 50px; font-size: 1.1rem; font-weight: 700; cursor: pointer;">
+                    Bayar Sekarang
+                </button>
+            </div>
+        </div>
 
     <script>
         // Theme Switcher Logic
         function toggleTheme(checkbox) {
             const isLight = checkbox.checked;
-
             if (isLight) {
-                document.body.classList.add('light-theme');
-                localStorage.setItem('theme', 'light');
+                document.body.classList.add('light-theme'); localStorage.setItem('theme', 'light');
             } else {
-                document.body.classList.remove('light-theme');
-                localStorage.setItem('theme', 'dark');
+                document.body.classList.remove('light-theme'); localStorage.setItem('theme', 'dark');
             }
+        } function openLogoutModal() {
+            const modal = document.getElementById('logoutModal'); if
+                (modal) modal.style.display = 'flex';
+        } function closeLogoutModal() {
+            const
+            modal = document.getElementById('logoutModal'); if (modal) modal.style.display = 'none';
         }
-
-        // Initialize Theme on Load
-        (function () {
-            const savedTheme = localStorage.getItem('theme');
-            const checkbox = document.getElementById('theme-checkbox');
-
-            if (savedTheme === 'light') {
-                document.body.classList.add('light-theme');
-                if (checkbox) checkbox.checked = true;
-            } else {
-                document.body.classList.remove('light-theme');
-                if (checkbox) checkbox.checked = false;
-            }
-        })();
-
-        function start() {
-            const input = document.getElementById('formurl');
-            const status = document.getElementById('form-status');
-            const v = input.value.trim();
-
-            status.innerText = '';
-            status.style.color = '#f87171'; // Reset color to red error
-
-            if (!v) {
-                status.innerText = 'Masukkan link Google Form';
+        window.onclick = function (event) {
+            const
+            logoutModal = document.getElementById('logoutModal'); const
+                tutorialModal = document.getElementById('tutorialModal'); const
+                    purchaseModal = document.getElementById('purchaseModal'); if (logoutModal &&
+                        event.target === logoutModal) { logoutModal.style.display = "none"; } if (tutorialModal &&
+                            event.target === tutorialModal) { tutorialModal.style.display = "none"; } if (purchaseModal
+                                && event.target === purchaseModal) { purchaseModal.style.display = "none"; }
+        }; (function
+            () {
+                const savedTheme = localStorage.getItem('theme'); const
+                    checkbox = document.getElementById('theme-checkbox'); if (savedTheme === 'light') {
+                        document.body.classList.add('light-theme'); if (checkbox) checkbox.checked = true;
+                    } else { document.body.classList.remove('light-theme'); if (checkbox) checkbox.checked = false; }
+        })(); function start() {
+            const input = document.getElementById('formurl'); const
+                status = document.getElementById('form-status'); const v = input ? input.value.trim() : '';
+            if (status) { status.innerText = ''; status.style.color = '#f87171'; } if (!v) {
+                if
+                    (status) status.innerText = 'Masukkan link Google Form'; return;
+            } if
+                (!v.includes('docs.google.com')) {
+                    if (status) status.innerText = 'Link tidak valid';
                 return;
-            }
-
-            if (!v.includes('docs.google.com')) {
-                status.innerText = 'Link tidak valid';
-                return;
-            }
-
-            // Trigger Loading UI
-            const overlay = document.getElementById('loading-overlay');
-            const content = document.getElementById('main-content');
-
-            overlay.style.display = 'flex';
-            content.classList.add('fade-out-active');
-
-            // Redirect after animation
+            } const overlay = document.getElementById('loading-overlay'); const
+                content = document.getElementById('main-content'); if (overlay)
+                overlay.style.display = 'flex'; if (content) content.classList.add('fade-out-active');
             setTimeout(() => {
                 window.location.href = '/scrape?url=' + encodeURIComponent(v);
             }, 700);
         }
 
         // Handle Enter Key
-        document.getElementById('formurl').addEventListener('keypress', function (event) {
-            if (event.key === 'Enter') {
-                start();
-            }
-        });
+        const formUrl = document.getElementById('formurl');
+        if (formUrl) {
+            formUrl.addEventListener('keypress', function (event) {
+                if (event.key === 'Enter') {
+                    start();
+                }
+            });
+        }
 
         // Smooth Scroll for Anchor Links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 e.preventDefault();
                 const targetId = this.getAttribute('href');
-                if (targetId === '#') return;
+                if (targetId === '#' || !targetId) return;
 
-                document.querySelector(targetId).scrollIntoView({
-                    behavior: 'smooth'
-                });
+                const element = document.querySelector(targetId);
+                if (element) {
+                    element.scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
             });
         });
 
         // --- TUTORIAL MODAL LOGIC ---
         function openTutorial() {
-            document.getElementById('tutorialModal').style.display = 'flex';
+            const modal = document.getElementById('tutorialModal');
+            if (modal) modal.style.display = 'flex';
         }
 
         function closeTutorial() {
-            document.getElementById('tutorialModal').style.display = 'none';
-        }
-
-        // Close on outside click
-        window.addEventListener('click', function (e) {
             const modal = document.getElementById('tutorialModal');
-            if (e.target === modal) {
-                closeTutorial();
-            }
-        });
+            if (modal) modal.style.display = 'none';
+        }
     </script>
+                                <script>
+                                    // PAYMENT & MODAL LOGIC
+                                    const purchaseModal = document.getElementById('purchaseModal');
+                                    const modalTokenInput = document.getElementById('modalTokenInput');
+                                    const modalRateDisplay = document.getElementById('modalRateDisplay');
+                                    const modalTokenCount = document.getElementById('modalTokenCount');
+                                    const modalTotalPrice = document.getElementById('modalTotalPrice');
+
+                                    function openPurchaseModal(defaultAmount) {
+            <% if (!locals.user) { %>
+                                            window.location.href = '/auth/google';
+                                            return;
+            <% } %>
+            if (modalTokenInput) {
+                                            modalTokenInput.value = defaultAmount;
+                                            updateModalPrice();
+                                        }
+                                        if (purchaseModal) purchaseModal.style.display = 'flex';
+                                    }
+
+                                    function closePurchaseModal() {
+                                        if (purchaseModal) purchaseModal.style.display = 'none';
+                                    }
+
+                                    function updateModalPrice() {
+                                        if (!modalTokenInput) return;
+
+                                        let val = parseInt(modalTokenInput.value);
+                                        if (!val || val < 1) val = 0; // Allow 0 for display
+
+                                        let rate = 500;
+                                        if (val >= 300) rate = 350;
+                                        else if (val >= 100) rate = 400;
+
+                                        if (modalRateDisplay) modalRateDisplay.innerText = `Harga: Rp ${rate} / resp`;
+                                        if (modalTokenCount) modalTokenCount.innerText = `${val} pcs`;
+                                        if (modalTotalPrice) modalTotalPrice.innerText = `Rp ${(val * rate).toLocaleString('id-ID')}`;
+                                    }
+
+                                    async function confirmPurchase() {
+                                        const tokens = modalTokenInput.value;
+                                        if (tokens < 1) {
+                                            alert("Minimal pembelian adalah 1 responden.");
+                                            return;
+                                        }
+
+                                        try {
+                                            const response = await fetch('/api/purchase', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ tokens: parseInt(tokens) })
+                                            });
+                                            const data = await response.json();
+
+                                            if (data.snapToken) {
+                                                window.snap.pay(data.snapToken, {
+                                                    onSuccess: function (result) {
+                                                        alert("Pembayaran berhasil!");
+                                                        window.location.reload();
+                                                    },
+                                                    onPending: function (result) {
+                                                        alert("Menunggu pembayaran...");
+                                                    },
+                                                    onError: function (result) {
+                                                        alert("Pembayaran gagal!");
+                                                    },
+                                                    onClose: function () {
+                                                        alert('Anda menutup popup tanpa menyelesaikan pembayaran');
+                                                    }
+                                                });
+                                                closePurchaseModal();
+                                            } else {
+                                                alert("Gagal membuat transaksi: " + (data.error || "Unknown error"));
+                                            }
+                                        } catch (e) {
+                                            console.error(e);
+                                            alert("Terjadi kesalahan sistem");
+                                        }
+                                    }
+
+                                    // Close modal on outside 
+                                    // click
+                                    window.addEventListener('click', function (e) {
+                                        if (e.target === purchaseModal) closePurchaseModal();
+                                    });
+                                </script>
+
+                                <% if (locals.user) { %>
+                                    <div class="mobile-user-bar">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <img src="/user/avatar?v=<%= user.id %>" alt="Avatar"
+                                                style="width:36px; height:36px; border-radius:50%; border: 2px solid var(--primary);"
+                                                referrerpolicy="no-referrer"
+                                                onerror="this.src='https://ui-avatars.com/api/?name=<%= user.name %>'">
+                                            <div>
+                                                <div
+                                                    style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">
+                                                    <%= user.name %>
+                                                </div>
+                                                <div style="font-size: 0.75rem; color: var(--secondary);">
+                                                    <i class="fa-solid fa-coins"></i> <span id="mobileTokenBalance">
+                                                        <%= user.tokenBalance || 0 %>
+                                                    </span> Tokens
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <a href="#" onclick="openLogoutModal(); return false;"
+                                            style="background: rgba(239, 68, 68, 0.1); color: var(--accent-danger); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; text-decoration: none;">
+                                            <i class="fa-solid fa-right-from-bracket"></i>
+                                        </a>
+                                    </div>
+                                    <% } %>
+
 </body>
 
 </html>

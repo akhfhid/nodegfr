@@ -8,10 +8,121 @@ const path = require('path');
 const app = express();
 const PORT = 3000;
 
+// Init Prisma
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+// Auth Dependencies
+const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
+const passport = require('./auth');
+
+require('dotenv').config();
+
 console.log('PUBLIC DIR:', path.join(__dirname, 'public'));
 
 app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Session Config
+app.use(session({
+    store: new SQLiteStore({ db: 'sessions.db', dir: '.' }),
+    secret: process.env.SESSION_SECRET || 'keyboard cat',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 } // 1 week
+}));
+
+// Passport Config
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Middleware to make 'user' available in all views
+app.use((req, res, next) => {
+    res.locals.user = req.user || null;
+    next();
+});
+
+// Authentication Middleware
+// Authentication Middleware
+function ensureAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) {
+        return next();
+    }
+    // Direct redirect to Google Auth for seamless experience
+    res.redirect('/auth/google');
+}
+
+// --- ROUTES ---
+
+// Auth Routes
+app.get('/login', (req, res) => {
+    if (req.isAuthenticated()) return res.redirect('/');
+    res.render('login');
+});
+
+app.get('/auth/google',
+    passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+app.get('/auth/google/callback',
+    passport.authenticate('google', { failureRedirect: '/login' }),
+    (req, res) => {
+        // Successful authentication, redirect home.
+        res.redirect('/');
+    });
+
+app.get('/logout', (req, res, next) => {
+    req.logout((err) => {
+        if (err) { return next(err); }
+        res.redirect('/');
+    });
+});
+
+// Avatar Proxy Route (to bypass 403/429 issues)
+app.get('/user/avatar', ensureAuthenticated, async (req, res) => {
+    const avatarUrl = req.user.avatar;
+    const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(req.user.name)}&background=random`;
+
+    if (!avatarUrl) return res.redirect(fallbackUrl);
+
+    try {
+        // Using native fetch (Node 18+)
+        const response = await fetch(avatarUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0' // Mock UA
+            }
+        });
+
+        if (!response.ok) throw new Error(`Google responded with ${response.status}`);
+
+        // Forward headers (content-type)
+        res.setHeader('Content-Type', response.headers.get('content-type'));
+        // Prevent caching so switching accounts works immediately
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+
+        // Stream the body
+        const reader = response.body.getReader();
+        const readable = new (require('stream').Readable)({
+            async read() {
+                const { done, value } = await reader.read();
+                if (done) {
+                    this.push(null);
+                } else {
+                    this.push(Buffer.from(value));
+                }
+            }
+        });
+        readable.pipe(res);
+
+    } catch (err) {
+        console.error("Avatar Proxy Error:", err.message);
+        res.redirect(fallbackUrl);
+    }
+});
 
 const RESPOND_COUNT_HARD_LIMIT = 999;
 const HARD_CODED_NAMEFAKER = true;
@@ -21,8 +132,25 @@ const faker = new Faker({
 });
 faker.locale = 'id_ID';
 
-app.get('/scrape', async (req, res) => {
+
+
+// Global UA Pool
+const USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0"
+];
+
+app.get('/scrape', ensureAuthenticated, async (req, res) => {
     const url = req.query.url;
+
+    // Check if form exists in DB first
+    // TODO: optimization later. for now just scrape.
 
     const formData = await scrape(url);
 
@@ -50,86 +178,250 @@ app.get('/', (req, res) => {
     });
 });
 
+// --- MIDTRANS & PAYMENT ROUTES ---
+const { snap } = require('./midtrans');
 
-app.post('/save-probabilities', express.json(), express.urlencoded({ extended: true }), (req, res) => {
-    const formData = req.body;
-    let respondCount = parseInt(req.body.respondCount) || 1;
-    if (respondCount > RESPOND_COUNT_HARD_LIMIT) { respondCount = RESPOND_COUNT_HARD_LIMIT; }
+app.post('/api/purchase', ensureAuthenticated, async (req, res) => {
+    const { tokens } = req.body;
+    const tokenCount = parseInt(tokens);
 
-    let baseUrl = formData.url;
-    let data = parseData(formData);
-    let nameFakerEntry, cityFakerEntry, genderFakerEntry, emailFakerEntry;
-    let newData = [];
-    let urlsToSend = [];
-
-    // Summary data for charts
-    let stats = {}; // { questionName: { option: count } }
-
-    for (const entry of data) {
-        if (entry.name == "url" || entry.name == "pageCount" || entry.name == "manualPageCount" || entry.name == "pageHistoryStr") {
-            continue;
-        }
-
-        if (formData['name-faker'] && entry.name == formData['name-faker']) {
-            nameFakerEntry = entry;
-        } else if (formData['gender-faker'] && entry.name == formData['gender-faker']) {
-            genderFakerEntry = entry;
-        } else if (formData['city-faker'] && entry.name == formData['city-faker']) {
-            cityFakerEntry = entry;
-        } else if (formData['email-faker'] && entry.name == formData['email-faker']) {
-            emailFakerEntry = entry;
-        } else {
-            newData.push(entry);
-        }
-        stats[entry.name] = {
-            _questionText: formData[`${entry.name}_text`] || entry.name,
-            _type: entry.checkbox ? 'Checkboxes' : 'Single Choice'
-        };
+    // 1. Validate Token Count (Min 1)
+    if (isNaN(tokenCount) || tokenCount < 1) {
+        return res.status(400).json({ error: "Minimal pembelian adalah 1 responden." });
     }
 
-    for (let i = 0; i < respondCount; i++) {
-        let fakerGender = Math.random() < 0.3 ? 'Laki-laki' : 'Perempuan';
-        let fakerName = faker.person.firstName(fakerGender == "Perempuan" ? "female" : "male");
-        let fakerCity = faker.location.city();
-        let fakerEmail = faker.internet.email().replace(/@.+$/, '@gmail.com');
-        if (Math.random() < 0.7) {
-            fakerName = fakerName.toLowerCase();
-        }
+    // 2. Calculate Price (Server-Side Validation)
+    // Tiers: 1-99 (500), 100-299 (400), 300+ (350)
+    let rate = 500;
+    if (tokenCount >= 300) {
+        rate = 350;
+    } else if (tokenCount >= 100) {
+        rate = 400;
+    }
 
-        // Track selections for stats
-        const selections = [];
-        const formUrl = decodeToGoogleFormUrl(baseUrl, newData, selections);
+    let totalAmount = tokenCount * rate;
+    const packageId = `CUSTOM-${tokenCount}`;
 
-        // Populate stats for the standard fields
-        selections.forEach(sel => {
-            if (!stats[sel.name]) stats[sel.name] = {};
-            sel.values.forEach(val => {
-                stats[sel.name][val] = (stats[sel.name][val] || 0) + 1;
-            });
+    // 1. Create Order ID
+    const orderId = `ORDER-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    // 2. Save Transaction PENDING
+    try {
+        await prisma.transaction.create({
+            data: {
+                id: orderId,
+                userId: req.user.id,
+                package: packageId,
+                amount: totalAmount,
+                tokens: tokenCount,
+                status: 'PENDING'
+            }
         });
 
-        const urlParams = new URLSearchParams();
-        if (formData["name-faker"]) {
-            urlParams.append(nameFakerEntry.name, fakerName);
-            stats[nameFakerEntry.name][fakerName] = (stats[nameFakerEntry.name][fakerName] || 0) + 1;
-        }
-        if (formData["gender-faker"]) {
-            urlParams.append(genderFakerEntry.name, fakerGender);
-            stats[genderFakerEntry.name][fakerGender] = (stats[genderFakerEntry.name][fakerGender] || 0) + 1;
-        }
-        if (formData["city-faker"]) {
-            urlParams.append(cityFakerEntry.name, fakerCity);
-            stats[cityFakerEntry.name][fakerCity] = (stats[cityFakerEntry.name][fakerCity] || 0) + 1;
-        }
-        if (formData["email-faker"]) {
-            urlParams.append(emailFakerEntry.name, fakerEmail);
-            stats[emailFakerEntry.name][fakerEmail] = (stats[emailFakerEntry.name][fakerEmail] || 0) + 1;
-        }
-        const newForm = `${formUrl}&${urlParams.toString()}`;
-        urlsToSend.push(newForm);
-    }
+        // 3. Request Snap Token
+        let parameter = {
+            "transaction_details": {
+                "order_id": orderId,
+                "gross_amount": totalAmount
+            },
+            "credit_card": {
+                "secure": true
+            },
+            "customer_details": {
+                "first_name": req.user.name.split(' ')[0],
+                "email": req.user.email,
+            }
+        };
 
-    res.json({ urlsToSend, stats });
+        const transaction = await snap.createTransaction(parameter);
+        const snapToken = transaction.token;
+
+        // Update DB with snapToken
+        await prisma.transaction.update({
+            where: { id: orderId },
+            data: { snapToken: snapToken }
+        });
+
+        res.json({ snapToken });
+
+    } catch (e) {
+        console.error("Midtrans Error:", e);
+        res.status(500).json({ error: "Failed to create transaction" });
+    }
+});
+
+app.post('/api/midtrans/notification', express.json(), async (req, res) => {
+    try {
+        const notificationJson = req.body;
+
+        // Check signature if needed (skip for sandbox simplicity first)
+        const statusResponse = await snap.transaction.notification(notificationJson);
+        const orderId = statusResponse.order_id;
+        const transactionStatus = statusResponse.transaction_status;
+        const fraudStatus = statusResponse.fraud_status;
+
+        console.log(`[MIDTRANS] Notification received for ${orderId}: ${transactionStatus}`);
+
+        let dbStatus = 'PENDING';
+
+        if (transactionStatus == 'capture') {
+            if (fraudStatus == 'challenge') {
+                dbStatus = 'CHALLENGE';
+            } else if (fraudStatus == 'accept') {
+                dbStatus = 'SUCCESS';
+            }
+        } else if (transactionStatus == 'settlement') {
+            dbStatus = 'SUCCESS';
+        } else if (transactionStatus == 'cancel' || transactionStatus == 'deny' || transactionStatus == 'expire') {
+            dbStatus = 'FAILED';
+        } else if (transactionStatus == 'pending') {
+            dbStatus = 'PENDING';
+        }
+
+        // Update DB
+        const transaction = await prisma.transaction.findUnique({ where: { id: orderId } });
+
+        if (transaction && transaction.status !== 'SUCCESS' && dbStatus === 'SUCCESS') {
+            // SUCCESS PAYMENT -> ADD TOKENS
+            await prisma.$transaction([
+                prisma.transaction.update({
+                    where: { id: orderId },
+                    data: { status: 'SUCCESS' }
+                }),
+                prisma.user.update({
+                    where: { id: transaction.userId },
+                    data: { tokenBalance: { increment: transaction.tokens } }
+                })
+            ]);
+            console.log(`[MIDTRANS] Success! Added ${transaction.tokens} tokens to user ${transaction.userId}`);
+        } else {
+            // Just update status
+            await prisma.transaction.update({
+                where: { id: orderId },
+                data: { status: dbStatus }
+            });
+        }
+
+        res.status(200).send('OK');
+    } catch (e) {
+        console.error("Midtrans Notification Error:", e);
+        res.status(500).send('Error');
+    }
+});
+
+
+app.post('/save-probabilities', ensureAuthenticated, express.json({ limit: '50mb' }), express.urlencoded({ extended: true, limit: '50mb' }), async (req, res) => {
+    try {
+        const formData = req.body;
+        let respondCount = parseInt(req.body.respondCount) || 1;
+        if (respondCount > RESPOND_COUNT_HARD_LIMIT) { respondCount = RESPOND_COUNT_HARD_LIMIT; }
+
+        let baseUrl = formData.url;
+        let data = parseData(formData);
+        let nameFakerEntry, cityFakerEntry, genderFakerEntry, emailFakerEntry;
+        let newData = [];
+        let urlsToSend = [];
+
+        // Summary data for charts
+        let stats = {}; // { questionName: { option: count } }
+
+        for (const entry of data) {
+            if (entry.name == "url" || entry.name == "pageCount" || entry.name == "manualPageCount" || entry.name == "pageHistoryStr") {
+                continue;
+            }
+
+            if (formData['name-faker'] && entry.name == formData['name-faker']) {
+                nameFakerEntry = entry;
+            } else if (formData['gender-faker'] && entry.name == formData['gender-faker']) {
+                genderFakerEntry = entry;
+            } else if (formData['city-faker'] && entry.name == formData['city-faker']) {
+                cityFakerEntry = entry;
+            } else if (formData['email-faker'] && entry.name == formData['email-faker']) {
+                emailFakerEntry = entry;
+            } else {
+                newData.push(entry);
+            }
+            stats[entry.name] = {
+                _questionText: formData[`${entry.name}_text`] || entry.name,
+                _type: entry.checkbox ? 'Checkboxes' : 'Single Choice'
+            };
+        }
+
+        // --- DB PERSISTENCE START ---
+        // 1. Find or Create Form
+        let form = await prisma.form.findUnique({ where: { url: baseUrl } });
+        if (!form) {
+            form = await prisma.form.create({
+                data: {
+                    userId: req.user.id,
+                    url: baseUrl,
+                    title: formData.formTitle || 'Untitled Form', // Note: Need to verify if formTitle is passed
+                    structure: JSON.stringify(stats) // Saving basic structure snapshot
+                }
+            });
+        }
+
+        // 2. Create Configuration
+        const config = await prisma.configuration.create({
+            data: {
+                formId: form.id,
+                name: `Config - ${new Date().toLocaleString()}`,
+                settings: JSON.stringify(formData)
+            }
+        });
+        // --- DB PERSISTENCE END ---
+
+        for (let i = 0; i < respondCount; i++) {
+            let fakerGender = Math.random() < 0.3 ? 'Laki-laki' : 'Perempuan';
+            let fakerName = faker.person.firstName(fakerGender == "Perempuan" ? "female" : "male");
+            let fakerCity = faker.location.city();
+            let fakerEmail = faker.internet.email().replace(/@.+$/, '@gmail.com');
+            if (Math.random() < 0.7) {
+                fakerName = fakerName.toLowerCase();
+            }
+
+            // Track selections for stats
+            const selections = [];
+            const formUrl = decodeToGoogleFormUrl(baseUrl, newData, selections);
+
+            // Populate stats for the standard fields
+            selections.forEach(sel => {
+                if (!stats[sel.name]) stats[sel.name] = {};
+                sel.values.forEach(val => {
+                    stats[sel.name][val] = (stats[sel.name][val] || 0) + 1;
+                });
+            });
+
+            const urlParams = new URLSearchParams();
+            if (formData["name-faker"]) {
+                urlParams.append(nameFakerEntry.name, fakerName);
+                if (!stats[nameFakerEntry.name]) stats[nameFakerEntry.name] = {};
+                stats[nameFakerEntry.name][fakerName] = (stats[nameFakerEntry.name][fakerName] || 0) + 1;
+            }
+            if (formData["gender-faker"]) {
+                urlParams.append(genderFakerEntry.name, fakerGender);
+                if (!stats[genderFakerEntry.name]) stats[genderFakerEntry.name] = {};
+                stats[genderFakerEntry.name][fakerGender] = (stats[genderFakerEntry.name][fakerGender] || 0) + 1;
+            }
+            if (formData["city-faker"]) {
+                urlParams.append(cityFakerEntry.name, fakerCity);
+                if (!stats[cityFakerEntry.name]) stats[cityFakerEntry.name] = {};
+                stats[cityFakerEntry.name][fakerCity] = (stats[cityFakerEntry.name][fakerCity] || 0) + 1;
+            }
+            if (formData["email-faker"]) {
+                urlParams.append(emailFakerEntry.name, fakerEmail);
+                if (!stats[emailFakerEntry.name]) stats[emailFakerEntry.name] = {};
+                stats[emailFakerEntry.name][fakerEmail] = (stats[emailFakerEntry.name][fakerEmail] || 0) + 1;
+            }
+            const newForm = `${formUrl}&${urlParams.toString()}`;
+            urlsToSend.push(newForm);
+        }
+
+        res.json({ urlsToSend, stats, configId: config.id });
+    } catch (error) {
+        console.error("Error in /save-probabilities:", error);
+        res.status(500).json({ error: "Failed to process request" });
+    }
 });
 
 // --- JOB MANAGEMENT ---
@@ -143,7 +435,7 @@ let globalJob = {
     startTime: null
 };
 
-app.post('/execute-links', express.json(), express.urlencoded({ extended: true }), (req, res) => {
+app.post('/execute-links', ensureAuthenticated, express.json({ limit: '50mb' }), express.urlencoded({ extended: true, limit: '50mb' }), async (req, res) => {
     if (globalJob.isRunning) {
         return res.status(409).json({ error: 'A job is already running' });
     }
@@ -154,6 +446,7 @@ app.post('/execute-links', express.json(), express.urlencoded({ extended: true }
 
     // Ensure array
     const urlsToSend = Array.isArray(urlsVal) ? urlsVal : [urlsVal];
+    const configId = req.body.configId;
 
     // Config
     const concurrency = parseInt(req.body.concurrency) || 5;
@@ -161,9 +454,71 @@ app.post('/execute-links', express.json(), express.urlencoded({ extended: true }
     const manualPageCount = parseInt(req.body.manualPageCount) || 0;
     const pageHistoryStr = req.body.pageHistoryStr || null;
 
-    // 2. Init Job
+    // --- TOKEN CHECK START ---
+    const cost = urlsToSend.length;
+
+    // Refresh user data to get latest balance
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+
+    if (!user || user.tokenBalance < cost) {
+        return res.status(402).json({ error: `Saldo tidak cukup! Butuh ${cost} tokens, Anda punya ${user ? user.tokenBalance : 0} tokens.` });
+    }
+
+    // Deduct Tokens & Log Transaction
+    let updatedUser;
+    try {
+        const results = await prisma.$transaction([
+            prisma.user.update({
+                where: { id: user.id },
+                data: { tokenBalance: { decrement: cost } }
+            }),
+            prisma.transaction.create({
+                data: {
+                    id: `USAGE-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                    userId: user.id,
+                    package: 'USAGE',
+                    amount: 0,
+                    tokens: -cost, // Negative to represent usage
+                    status: 'SUCCESS'
+                }
+            })
+        ]);
+        updatedUser = results[0];
+    } catch (err) {
+        console.error("Token Deduction Failed:", err);
+        return res.status(500).json({ error: "Gagal memproses token. Job dibatalkan." });
+    }
+    // --- TOKEN CHECK END ---
+
+    // 2. Create Job in DB
+    let job;
+    if (configId) {
+        try {
+            job = await prisma.job.create({
+                data: {
+                    configId: configId,
+                    targetCount: urlsToSend.length,
+                    status: 'PENDING'
+                }
+            });
+        } catch (e) {
+            console.error("Failed to create Job in DB:", e);
+            // Fallback? If DB fails, maybe we shouldn't run.
+            return res.status(500).json({ error: 'Database Error: Could not create Job' });
+        }
+    } else {
+        // Handle case where no configId is present (legacy or direct API call without config? We should probably enforce it or create a trash config)
+        // For now, let's error if strictly needed, or just warn. 
+        // Schema requires configId. So we MUST have one.
+        // If missing, we can create a "Quick Run" config attached to a "Default Form"? 
+        // Or just fail. Let's fail for now to ensure integrity.
+        return res.status(400).json({ error: 'Missing Configuration ID. Please save probabilities first.' });
+    }
+
+    // 3. Init Global Job (Memory) for legacy/fast status checking
     globalJob = {
         isRunning: true,
+        id: job.id, // Link to DB Job
         total: urlsToSend.length,
         current: 0,
         success: 0,
@@ -172,25 +527,32 @@ app.post('/execute-links', express.json(), express.urlencoded({ extended: true }
         startTime: Date.now()
     };
 
-    // 3. Start Background Worker (Fire and Forget)
-    runBackgroundJob(urlsToSend, concurrency, delay, manualPageCount, pageHistoryStr);
+    // 4. Start Background Worker (Fire and Forget)
+    runBackgroundJob(urlsToSend, concurrency, delay, manualPageCount, pageHistoryStr, job.id);
 
-    // 4. Return immediately
-    res.json({ message: 'Job started', total: urlsToSend.length });
+    // 5. Return immediately
+    res.json({ message: 'Job started', total: urlsToSend.length, jobId: job.id, newBalance: updatedUser.tokenBalance });
 });
 
-app.get('/job-status', (req, res) => {
+app.get('/job-status', ensureAuthenticated, (req, res) => {
     res.json(globalJob);
 });
 
-app.post('/stop-job', (req, res) => {
+app.post('/stop-job', ensureAuthenticated, (req, res) => {
     if (!globalJob.isRunning) return res.json({ message: 'No job running' });
     globalJob.isRunning = false;
     res.json({ message: 'Stop signal sent' });
 });
 
-async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, pageHistoryStr = null) {
+async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, pageHistoryStr = null, jobId = null) {
     console.log(`[JOB] Starting background job: ${urls.length} items. Threads: ${concurrency}. Manual Pages: ${manualPageCount}. Page History: ${pageHistoryStr}`);
+
+    if (jobId) {
+        await prisma.job.update({
+            where: { id: jobId },
+            data: { status: 'RUNNING' }
+        });
+    }
 
     let currentIndex = 0;
     const activeWorkers = [];
@@ -222,8 +584,17 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
             }
 
             try {
+                // Select Random User-Agent
+                const randomUA = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+
                 const status = await new Promise((resolve) => {
-                    const req = https.get(finalUrl, (response) => {
+                    const options = {
+                        headers: {
+                            'User-Agent': randomUA
+                        }
+                    };
+
+                    const req = https.get(finalUrl, options, (response) => {
                         resolve(response.statusCode);
                     });
                     req.on('error', (e) => {
@@ -238,14 +609,32 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
                     // Check if it's a redirect (common in Google Forms)
                     if (status >= 300 && status < 400) {
                         console.log(`[JOB INFO] Redirect detected. Usually means success but we aren't following it.`);
-                        // For now, let's count it as success to verify
                         globalJob.success++;
                     } else {
                         globalJob.fail++;
+                        // Log failure to DB
+                        if (jobId) {
+                            await prisma.jobLog.create({
+                                data: {
+                                    jobId: jobId,
+                                    status: 'FAIL',
+                                    message: `Status: ${status} | URL: ${finalUrl}`
+                                }
+                            });
+                        }
                     }
                 }
             } catch (err) {
                 globalJob.fail++;
+                if (jobId) {
+                    await prisma.jobLog.create({
+                        data: {
+                            jobId: jobId,
+                            status: 'FAIL',
+                            message: `Exception: ${err.message} | URL: ${finalUrl}`
+                        }
+                    });
+                }
             }
 
             globalJob.current++;
@@ -262,6 +651,18 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
     await Promise.all(activeWorkers);
     globalJob.isRunning = false;
     console.log(`[JOB] Finished. Success: ${globalJob.success}, Fail: ${globalJob.fail}`);
+
+    if (jobId) {
+        await prisma.job.update({
+            where: { id: jobId },
+            data: {
+                status: 'COMPLETED',
+                successCount: globalJob.success,
+                failCount: globalJob.fail,
+                completedAt: new Date()
+            }
+        });
+    }
 }
 
 app.listen(PORT, () => {
@@ -456,9 +857,18 @@ async function scrape(url) {
         console.log(`[SCRAPER] Scraping URL: ${url}`);
         browser = await getBrowser();
         page = await browser.newPage();
+        // OPTIMIZATION: Block assets
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+            if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) {
+                req.abort();
+            } else {
+                req.continue();
+            }
+        });
 
-        // Wait for network to be idle
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+        // OPTIMIZATION: Wait for DOM only, not full network idle
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
         // DEBUG: Listen to browser console
         page.on('console', msg => console.log('PAGE LOG:', msg.text()));

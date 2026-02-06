@@ -1,0 +1,89 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  googleId  String   @unique
+  email     String   @unique
+  name      String?
+  avatar    String?
+  createdAt DateTime @default(now())
+  
+  tokenBalance Int      @default(5) // Default 5 tokens for trial
+  transactions Transaction[]
+  
+  forms     Form[]
+}
+
+model Form {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  title     String?
+  url       String   @unique
+  structure String   // Stored as JSON string
+  createdAt DateTime @default(now())
+  
+  configs   Configuration[]
+}
+
+model Configuration {
+  id        String   @id @default(uuid())
+  formId    String
+  form      Form     @relation(fields: [formId], references: [id])
+  
+  name      String
+  settings  String   // Stored as JSON string
+  jobs      Job[]
+  createdAt DateTime @default(now())
+}
+
+model Job {
+  id          String    @id @default(uuid())
+  configId    String
+  config      Configuration @relation(fields: [configId], references: [id])
+  
+  status      String    @default("PENDING") // PENDING, RUNNING, COMPLETED, FAILED
+  targetCount Int
+  successCount Int      @default(0)
+  failCount   Int       @default(0)
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  logs        JobLog[]
+}
+
+model JobLog {
+  id        String   @id @default(uuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id])
+  
+  status    String
+  message   String?
+  createdAt DateTime @default(now())
+}
+
+model Transaction {
+  id        String   @id // This will be the ORDER ID (UUID)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  package   String
+  amount    Int
+  tokens    Int
+  
+  snapToken String?  @db.Text
+  status    String   @default("PENDING") // PENDING, SUCCESS, FAILED
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
