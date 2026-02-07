@@ -781,11 +781,12 @@ app.get('/admin', ensureAdmin, async (req, res) => {
         // Get summary stats
         const totalUsers = await prisma.user.count();
 
-        // Token stats from transactions
+        // Token stats from transactions (exclude admin operations)
         const purchaseAgg = await prisma.transaction.aggregate({
             where: {
                 status: 'SUCCESS',
-                tokens: { gt: 0 }
+                tokens: { gt: 0 },
+                NOT: { package: { startsWith: 'ADMIN-' } }
             },
             _sum: { tokens: true }
         });
@@ -794,7 +795,8 @@ app.get('/admin', ensureAdmin, async (req, res) => {
         const usageAgg = await prisma.transaction.aggregate({
             where: {
                 status: 'SUCCESS',
-                tokens: { lt: 0 }
+                tokens: { lt: 0 },
+                NOT: { package: { startsWith: 'ADMIN-' } }
             },
             _sum: { tokens: true }
         });
@@ -854,14 +856,21 @@ app.get('/api/admin/users', ensureAdmin, async (req, res) => {
                 .filter(t => t.tokens < 0 && !t.package.startsWith('ADMIN-'))
                 .reduce((sum, t) => sum + t.tokens, 0));
 
-            let formsFilled = 0;
+            let responsesSubmitted = 0;
             user.forms.forEach(form => {
                 form.configs.forEach(config => {
                     config.jobs.forEach(job => {
-                        formsFilled += job.successCount;
+                        responsesSubmitted += job.successCount;
                     });
                 });
             });
+
+            // Get form URLs for display
+            const forms = user.forms.map(form => ({
+                id: form.id,
+                title: form.title || 'Untitled Form',
+                url: form.url
+            }));
 
             return {
                 id: user.id,
@@ -871,7 +880,8 @@ app.get('/api/admin/users', ensureAdmin, async (req, res) => {
                 tokenBalance: user.tokenBalance,
                 tokensPurchased,
                 tokensUsed,
-                formsFilled,
+                responsesSubmitted,
+                forms,
                 createdAt: user.createdAt
             };
         });

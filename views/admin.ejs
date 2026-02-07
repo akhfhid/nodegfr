@@ -749,6 +749,87 @@
         ::-webkit-scrollbar-thumb:hover {
             background: var(--text-muted);
         }
+
+        /* SweetAlert2 Custom Styling - Glassmorphism */
+        .swal2-popup {
+            background: var(--bg-card) !important;
+            backdrop-filter: blur(8px) !important;
+            -webkit-backdrop-filter: blur(8px) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: var(--border-radius) !important;
+            color: var(--text-main) !important;
+            box-shadow: 0 8px 32px var(--shadow-soft) !important;
+            will-change: transform, opacity;
+        }
+
+        .swal2-container {
+            backdrop-filter: none !important;
+            background: rgba(0, 0, 0, 0.5) !important;
+        }
+
+        .swal2-title {
+            color: var(--text-main) !important;
+            font-family: 'Space Grotesk', sans-serif !important;
+            font-weight: 700 !important;
+        }
+
+        .swal2-html-container {
+            color: var(--text-main) !important;
+        }
+
+        .swal2-input {
+            background: var(--bg-input) !important;
+            border: 1px solid var(--input-border) !important;
+            border-radius: 10px !important;
+            color: var(--text-main) !important;
+            font-family: 'Space Grotesk', sans-serif !important;
+        }
+
+        .swal2-input:focus {
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 15px rgba(124, 58, 237, 0.2) !important;
+        }
+
+        .swal2-input::placeholder {
+            color: var(--text-muted) !important;
+        }
+
+        .swal2-validation-message {
+            background: rgba(239, 68, 68, 0.1) !important;
+            color: var(--accent-danger) !important;
+            border-radius: 8px !important;
+        }
+
+        .swal2-confirm {
+            font-family: 'Space Grotesk', sans-serif !important;
+            font-weight: 600 !important;
+            border-radius: 50px !important;
+            padding: 10px 24px !important;
+        }
+
+        .swal2-cancel {
+            font-family: 'Space Grotesk', sans-serif !important;
+            font-weight: 600 !important;
+            border-radius: 50px !important;
+            padding: 10px 24px !important;
+            background: var(--bg-input) !important;
+            color: var(--text-main) !important;
+            border: 1px solid var(--border-color) !important;
+        }
+
+        .swal2-cancel:hover {
+            background: var(--bg-card-hover) !important;
+        }
+
+        /* Light theme adjustments for SweetAlert */
+        body.light-theme .swal2-popup {
+            background: rgba(255, 255, 255, 0.85) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        body.light-theme .swal2-input {
+            background: rgba(0, 0, 0, 0.03) !important;
+        }
     </style>
 </head>
 
@@ -833,7 +914,7 @@
                         stats.totalFormsFilled >= 1000 ? (stats.totalFormsFilled / 1000).toFixed(1) + 'k' :
                         stats.totalFormsFilled %>
                 </div>
-                <div class="stat-label">Forms Filled</div>
+                <div class="stat-label">Responses</div>
             </div>
             <div class="glass-panel stat-card">
                 <div class="stat-icon vouchers"><i class="fa-solid fa-ticket"></i></div>
@@ -975,6 +1056,7 @@
                             <th>Balance</th>
                             <th>Purchased</th>
                             <th>Used</th>
+                            <th>Responses</th>
                             <th>Forms</th>
                             <th>Joined</th>
                             <th>Actions</th>
@@ -997,7 +1079,15 @@
                         <td><span class="badge badge-success">${u.tokenBalance}</span></td>
                         <td>${u.tokensPurchased}</td>
                         <td>${u.tokensUsed}</td>
-                        <td>${u.formsFilled}</td>
+                        <td>${u.responsesSubmitted}</td>
+                        <td>
+                            ${u.forms.length > 0 ?
+                            `<button class="btn-icon" onclick="showUserForms('${u.name}', ${JSON.stringify(u.forms).replace(/"/g, '&quot;')})" title="Lihat ${u.forms.length} form">
+                                    <i class="fa-solid fa-file-lines"></i> ${u.forms.length}
+                                </button>` :
+                            '<span style="color: var(--text-muted);">-</span>'
+                        }
+                        </td>
                         <td>${new Date(u.createdAt).toLocaleDateString()}</td>
                         <td>
                             <button class="btn-icon" onclick="addTokenToUser('${u.id}', '${u.name}')" title="Add Tokens">
@@ -1184,33 +1274,71 @@
             }
         }
 
+        // Show User Forms Modal
+        function showUserForms(userName, forms) {
+            const formsHtml = forms.map(form => `
+                <div style="padding: 12px; background: var(--bg-input); border-radius: 10px; margin-bottom: 10px;">
+                    <div style="font-weight: 600; margin-bottom: 5px;">${form.title}</div>
+                    <a href="${form.url}" target="_blank" style="color: var(--primary); font-size: 0.85rem; word-break: break-all;">
+                        ${form.url}
+                    </a>
+                </div>
+            `).join('');
+
+            Swal.fire({
+                title: `Forms dari ${userName}`,
+                html: `
+                    <div style="text-align: left; max-height: 400px; overflow-y: auto;">
+                        ${formsHtml || '<p style="color: var(--text-muted);">Tidak ada form</p>'}
+                    </div>
+                `,
+                confirmButtonText: 'Tutup',
+                confirmButtonColor: '#8b5cf6',
+                width: '600px'
+            });
+        }
+
         // Add Token to User
         async function addTokenToUser(userId, userName) {
             const { value: formValues } = await Swal.fire({
-                title: `Add Tokens to ${userName}`,
+                title: `Tambah Token ke ${userName}`,
                 html: `
                     <div style="text-align: left; margin-bottom: 10px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Token Amount</label>
-                        <input type="number" id="swal-tokens" class="swal2-input" placeholder="e.g. 100" style="margin: 0; width: 100%;">
-                        <small style="color: #666;">Use negative number to deduct</small>
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Jumlah Token</label>
+                        <input type="number" id="swal-tokens" class="swal2-input" placeholder="cth: 100" min="1" style="margin: 0; width: 100%;">
                     </div>
                     <div style="text-align: left; margin-top: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Reason (optional)</label>
-                        <input type="text" id="swal-reason" class="swal2-input" placeholder="e.g. Bonus reward" style="margin: 0; width: 100%;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Alasan (opsional)</label>
+                        <input type="text" id="swal-reason" class="swal2-input" placeholder="cth: Bonus reward" style="margin: 0; width: 100%;">
                     </div>
                 `,
                 focusConfirm: false,
                 showCancelButton: true,
-                confirmButtonText: 'Add Tokens',
+                confirmButtonText: 'Tambah Token',
+                cancelButtonText: 'Batal',
                 confirmButtonColor: '#8b5cf6',
+                didOpen: () => {
+                    const tokenInput = document.getElementById('swal-tokens');
+                    const reasonInput = document.getElementById('swal-reason');
+                    tokenInput.focus();
+
+                    const handleEnter = (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            Swal.clickConfirm();
+                        }
+                    };
+                    tokenInput.addEventListener('keypress', handleEnter);
+                    reasonInput.addEventListener('keypress', handleEnter);
+                },
                 preConfirm: () => {
-                    const tokens = document.getElementById('swal-tokens').value;
-                    if (!tokens || tokens == 0) {
-                        Swal.showValidationMessage('Please enter a valid token amount');
+                    const tokens = parseInt(document.getElementById('swal-tokens').value);
+                    if (!tokens || tokens <= 0) {
+                        Swal.showValidationMessage('Masukkan jumlah token yang valid (minimal 1)');
                         return false;
                     }
                     return {
-                        tokens: parseInt(tokens),
+                        tokens: tokens,
                         reason: document.getElementById('swal-reason').value
                     };
                 }
@@ -1228,7 +1356,7 @@
                     if (res.ok) {
                         Swal.fire({
                             icon: 'success',
-                            title: 'Success!',
+                            title: 'Berhasil!',
                             text: data.message,
                             confirmButtonColor: '#8b5cf6'
                         });
@@ -1238,7 +1366,7 @@
                         Swal.fire('Error', data.error, 'error');
                     }
                 } catch (err) {
-                    Swal.fire('Error', 'Failed to add tokens', 'error');
+                    Swal.fire('Error', 'Gagal menambah token', 'error');
                 }
             }
         }
@@ -1256,21 +1384,36 @@
             }
 
             const { value: formValues } = await Swal.fire({
-                title: `Delete Token dari ${userName}`,
+                title: `Hapus Token dari ${userName}`,
                 html: `
                     <div style="text-align: left; margin-bottom: 10px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Jumlah Token (max: ${maxBalance})</label>
-                        <input type="number" id="swal-tokens" class="swal2-input" placeholder="e.g. 50" min="1" max="${maxBalance}" style="margin: 0; width: 100%;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Jumlah Token (maks: ${maxBalance})</label>
+                        <input type="number" id="swal-tokens" class="swal2-input" placeholder="cth: 50" min="1" max="${maxBalance}" style="margin: 0; width: 100%;">
                     </div>
                     <div style="text-align: left; margin-top: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Reason (optional)</label>
-                        <input type="text" id="swal-reason" class="swal2-input" placeholder="e.g. Refund, Penalty" style="margin: 0; width: 100%;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Alasan (opsional)</label>
+                        <input type="text" id="swal-reason" class="swal2-input" placeholder="cth: Refund, Penalty" style="margin: 0; width: 100%;">
                     </div>
                 `,
                 focusConfirm: false,
                 showCancelButton: true,
-                confirmButtonText: 'Delete Token',
+                confirmButtonText: 'Hapus Token',
+                cancelButtonText: 'Batal',
                 confirmButtonColor: '#ef4444',
+                didOpen: () => {
+                    const tokenInput = document.getElementById('swal-tokens');
+                    const reasonInput = document.getElementById('swal-reason');
+                    tokenInput.focus();
+
+                    const handleEnter = (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            Swal.clickConfirm();
+                        }
+                    };
+                    tokenInput.addEventListener('keypress', handleEnter);
+                    reasonInput.addEventListener('keypress', handleEnter);
+                },
                 preConfirm: () => {
                     const tokens = parseInt(document.getElementById('swal-tokens').value);
                     if (!tokens || tokens <= 0) {
@@ -1300,7 +1443,7 @@
                     if (res.ok) {
                         Swal.fire({
                             icon: 'success',
-                            title: 'Token Deleted!',
+                            title: 'Token Dihapus!',
                             text: data.message,
                             confirmButtonColor: '#8b5cf6'
                         });
@@ -1310,7 +1453,7 @@
                         Swal.fire('Error', data.error, 'error');
                     }
                 } catch (err) {
-                    Swal.fire('Error', 'Failed to delete tokens', 'error');
+                    Swal.fire('Error', 'Gagal menghapus token', 'error');
                 }
             }
         }
