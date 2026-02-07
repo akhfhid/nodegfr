@@ -1097,35 +1097,34 @@
             </div>
 
             <div class="packages-grid">
-                <!-- Paket 1 -->
-                <div class="glass-panel package-card">
-                    <span class="package-range">Starter</span>
-                    <div class="package-number">1–99</div>
-                    <p style="color:var(--text-muted); margin-bottom:20px;">Respondents</p>
-                    <div class="package-price">Rp <b>500</b> /pcs</div>
-                    <button class="btn-select" onclick="openPurchaseModal(50)">Beli Paket</button>
-                </div>
-
-                <!-- Paket 2 (Active) -->
-                <div class="glass-panel package-card active">
-                    <span class="package-badge">Best Seller</span>
-                    <span class="package-range">Popular</span>
-                    <div class="package-number">100–299</div>
-                    <p style="color:var(--text-muted); margin-bottom:20px;">Respondents</p>
-                    <div class="package-price">Rp <b>400</b> /pcs</div>
-                    <button class="btn-select" onclick="openPurchaseModal(100)">Beli Paket</button>
-                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">*Lebih hemat 20%</div>
-                </div>
-
-                <!-- Paket 3 -->
-                <div class="glass-panel package-card">
-                    <span class="package-range">Enterprise</span>
-                    <div class="package-number">300–700</div>
-                    <p style="color:var(--text-muted); margin-bottom:20px;">Respondents</p>
-                    <div class="package-price">Rp <b>350</b> /pcs</div>
-                    <button class="btn-select" onclick="openPurchaseModal(300)">Beli Paket</button>
-                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">*Lebih hemat 30%</div>
-                </div>
+                <% if (typeof packages !== 'undefined' && packages.length > 0) { %>
+                    <% packages.forEach(pkg => { %>
+                        <div class="glass-panel package-card <%= pkg.popular ? 'active' : '' %>">
+                            <% if (pkg.popular) { %>
+                                <span class="package-badge">Best Seller</span>
+                                <span class="package-range" style="color: gold;"><i class="fa-solid fa-star"></i> Popular</span>
+                            <% } else { %>
+                                <span class="package-range"><%= pkg.name %></span>
+                            <% } %>
+                            
+                            <div class="package-number"><%= pkg.tokens %></div>
+                            <p style="color:var(--text-muted); margin-bottom:20px;">Responden</p>
+                            
+                            <div class="package-price">Rp <b><%= (pkg.price / 1000).toFixed(0) %>k</b></div>
+                            <!-- Display full price in modal, but here K format looks nice -->
+                            
+                            <button class="btn-select" onclick="openPurchaseModal(<%= pkg.tokens %>)">Beli Paket</button>
+                            
+                            <% if (pkg.description) { %>
+                                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;"><%= pkg.description %></div>
+                            <% } %>
+                        </div>
+                    <% }); %>
+                <% } else { %>
+                    <div class="glass-panel package-card">
+                         <p style="color:var(--text-muted);">Paket belum tersedia.</p>
+                    </div>
+                <% } %>
             </div>
         </section>
 
@@ -1299,6 +1298,7 @@
     </script>
                                 <script>
                                     // PAYMENT & MODAL LOGIC
+                                    const availablePackages = <%- JSON.stringify(typeof packages !== 'undefined' ? packages : []) %>;
                                     const purchaseModal = document.getElementById('purchaseModal');
                                     const modalTokenInput = document.getElementById('modalTokenInput');
                                     const modalRateDisplay = document.getElementById('modalRateDisplay');
@@ -1328,33 +1328,45 @@
                                         if (!modalTokenInput) return;
 
                                         let val = parseInt(modalTokenInput.value);
-                                        if (!val || val < 1) val = 0; // Allow 0 for display
+                                        if (!val || val < 1) val = 0;
 
-                                        let rate = 1; // TESTING MODE
-                                        // if (val >= 300) rate = 350;
-                                        // else if (val >= 100) rate = 400;
+                                        // Try to find matching package
+                                        const pkg = availablePackages.find(p => p.tokens === val && p.active);
+                                        
+                                        let total;
+                                        let rateDisplay = '';
 
-                                        let total = val * rate;
+                                        if (pkg) {
+                                            total = pkg.price;
+                                            // inferred rate
+                                            const rate = Math.round(pkg.price / pkg.tokens);
+                                            rateDisplay = `Harga Paket: Rp ${pkg.price.toLocaleString('id-ID')}`;
+                                        } else {
+                                            // Fallback rate if manual input doesn't match package
+                                            // Using 1 for now as per original code context, or ideally 500?
+                                            // Let's use 500 as base rate if no package matches
+                                            let rate = 500; 
+                                            total = val * rate;
+                                            rateDisplay = `Harga: Rp ${rate} / resp`;
+                                        }
+
                                         let finalTotal = total;
 
                                         if (currentDiscountPercent > 0) {
                                             const discount = Math.floor((total * currentDiscountPercent) / 100);
                                             finalTotal = total - discount;
                                             
-                                            // Update UI for discount
                                             const discountDisplay = document.getElementById('discountDisplay');
                                             if (discountDisplay) {
                                                 discountDisplay.style.display = 'block';
                                                 discountDisplay.innerText = `Hemat ${currentDiscountPercent}% (-Rp ${discount.toLocaleString('id-ID')})`;
                                             }
-                                            
-                                            // Strikethrough original price if you wanted, but here explicitly showing total
                                         } else {
                                              const discountDisplay = document.getElementById('discountDisplay');
                                              if (discountDisplay) discountDisplay.style.display = 'none';
                                         }
 
-                                        if (modalRateDisplay) modalRateDisplay.innerText = `Harga: Rp ${rate} / resp`;
+                                        if (modalRateDisplay) modalRateDisplay.innerText = rateDisplay;
                                         if (modalTokenCount) modalTokenCount.innerText = `${val} pcs`;
                                         if (modalTotalPrice) modalTotalPrice.innerText = `Rp ${finalTotal.toLocaleString('id-ID')}`;
                                     }

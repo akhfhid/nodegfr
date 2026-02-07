@@ -110,6 +110,21 @@ model Voucher {
   updatedAt DateTime @updatedAt
 }
 
+model TokenPackage {
+  id        String   @id @default(uuid())
+  name      String
+  tokens    Int
+  price     Int
+  popular   Boolean  @default(false)
+  active    Boolean  @default(true)
+  
+  description String?
+  features    String? // Stored as JSON or comma-separated string
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model AdminLog {
   id         String   @id @default(uuid())
   action     String   // ADD_TOKENS, DEDUCT_TOKENS, etc.

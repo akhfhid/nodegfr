@@ -931,6 +931,7 @@
             <button class="tab-btn" data-tab="vouchers"><i class="fa-solid fa-ticket"></i> Vouchers</button>
             <button class="tab-btn" data-tab="transactions"><i class="fa-solid fa-receipt"></i> Transactions</button>
             <button class="tab-btn" data-tab="logs"><i class="fa-solid fa-clipboard-list"></i> Admin Logs</button>
+            <button class="tab-btn" data-tab="pricing"><i class="fa-solid fa-tags"></i> Pricing</button>
         </div>
 
         <!-- Users Tab -->
@@ -1010,6 +1011,22 @@
                 <div id="logsTable" class="loading">
                     <i class="fa-solid fa-spinner"></i>
                     <p>Loading logs...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pricing Tab -->
+        <div id="pricing" class="tab-content">
+            <div class="glass-panel">
+                <div class="section-header">
+                    <h2 class="section-title">Manage Packages</h2>
+                    <button class="btn btn-primary" onclick="openAddPackageModal()">
+                        <i class="fa-solid fa-plus"></i> Add Package
+                    </button>
+                </div>
+                <div id="packagesTable" class="loading">
+                    <i class="fa-solid fa-spinner"></i>
+                    <p>Loading packages...</p>
                 </div>
             </div>
         </div>
@@ -1474,22 +1491,24 @@
                         <tr>
                             <th>Time</th>
                             <th>Action</th>
+                            <th>Admin</th>
+                            <th>Target</th>
                             <th>Details</th>
                             <th>Reason</th>
-                            <th>Admin</th>
                         </tr>
                     </thead>
                     <tbody>`;
 
                 logs.forEach(log => {
-                    const actionClass = log.action.includes('ADD') ? 'badge-success' :
-                        log.action.includes('DELETE') ? 'badge-danger' : 'badge-warning';
                     html += `<tr>
-                        <td style="font-size: 0.8rem;">${new Date(log.createdAt).toLocaleString()}</td>
-                        <td><span class="badge ${actionClass}">${log.action}</span></td>
-                        <td style="font-size: 0.85rem;">${log.details}</td>
-                        <td style="font-size: 0.85rem;">${log.reason || '-'}</td>
-                        <td>${log.adminEmail}</td>
+                        <td style="color: var(--text-muted); font-size: 0.9rem;">${new Date(log.createdAt).toLocaleString()}</td>
+                        <td><span class="badge badge-info" style="font-size: 0.85rem;">${log.action}</span></td>
+                        <td style="font-weight: 500;">${log.adminEmail}</td>
+                        <td style="color: var(--text-muted);">${log.targetUser || '-'}</td>
+                        <td>
+                            <div style="font-weight: 500; font-size: 0.95rem;">${log.details}</div>
+                        </td>
+                        <td style="color: var(--text-muted); font-size: 0.9rem;">${log.reason || '-'}</td>
                     </tr>`;
                 });
 
@@ -1500,11 +1519,228 @@
             }
         }
 
+        // --- PACKAGE MANAGEMENT ---
+        async function loadPackages() {
+            try {
+                const res = await fetch('/api/admin/packages');
+                const packages = await res.json();
+
+                if (packages.length === 0) {
+                    document.getElementById('packagesTable').innerHTML = '<p style="color: var(--text-muted);">No packages defined</p>';
+                    return;
+                }
+
+                let html = '<table><thead><tr><th>Name</th><th>Tokens</th><th>Price</th><th>Active</th><th>Popular</th><th>Actions</th></tr></thead><tbody>';
+
+                packages.forEach(pkg => {
+                    const activeBadge = pkg.active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>';
+                    const popularBadge = pkg.popular ? '<i class="fa-solid fa-star" style="color: gold;" title="Popular"></i>' : '';
+
+                    html += `<tr>
+                        <td>
+                            <div style="font-weight: 600;">${pkg.name}</div>
+                            ${pkg.description ? `<div style="font-size: 0.8rem; color: var(--text-muted);">${pkg.description}</div>` : ''}
+                        </td>
+                        <td>${pkg.tokens}</td>
+                        <td>Rp${pkg.price.toLocaleString()}</td>
+                        <td>${activeBadge}</td>
+                        <td>${popularBadge}</td>
+                        <td>
+                            <button class="btn-icon" onclick="editPackage('${pkg.id}', '${pkg.name}', ${pkg.tokens}, ${pkg.price}, '${pkg.description || ''}', ${pkg.popular}, ${pkg.active})" title="Edit">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button class="btn-icon delete" onclick="deletePackage('${pkg.id}', '${pkg.name}')" title="Delete">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>`;
+                });
+
+                html += '</tbody></table>';
+                document.getElementById('packagesTable').innerHTML = html;
+            } catch (err) {
+                document.getElementById('packagesTable').innerHTML = '<p style="color: var(--accent-danger);">Error loading packages</p>';
+            }
+        }
+
+        async function openAddPackageModal() {
+            const { value: formValues } = await Swal.fire({
+                title: 'Add New Package',
+                html: `
+                    <div style="text-align: left;">
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label>Package Name</label>
+                            <input id="swal-pkg-name" class="swal2-input" placeholder="e.g. Starter Pack" style="margin: 0; width: 100%;">
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                            <div class="form-group" style="flex: 1;">
+                                <label>Tokens</label>
+                                <input id="swal-pkg-tokens" type="number" class="swal2-input" placeholder="10" style="margin: 0; width: 100%;">
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label>Price (Rp)</label>
+                                <input id="swal-pkg-price" type="number" class="swal2-input" placeholder="10000" style="margin: 0; width: 100%;">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label>Description (Optional)</label>
+                            <input id="swal-pkg-desc" class="swal2-input" placeholder="e.g. Best for beginners" style="margin: 0; width: 100%;">
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="swal-pkg-popular">
+                            <label for="swal-pkg-popular" style="margin: 0;">Mark as Popular</label>
+                        </div>
+                    </div>
+                `,
+                focusConfirm: false,
+                confirmButtonText: 'Create Package',
+                showCancelButton: true,
+                preConfirm: () => {
+                    const name = document.getElementById('swal-pkg-name').value;
+                    const tokens = document.getElementById('swal-pkg-tokens').value;
+                    const price = document.getElementById('swal-pkg-price').value;
+
+                    if (!name || !tokens || !price) {
+                        Swal.showValidationMessage('Please fill all required fields');
+                        return false;
+                    }
+
+                    return {
+                        name,
+                        tokens: parseInt(tokens),
+                        price: parseInt(price),
+                        description: document.getElementById('swal-pkg-desc').value,
+                        popular: document.getElementById('swal-pkg-popular').checked
+                    };
+                }
+            });
+
+            if (formValues) {
+                try {
+                    const res = await fetch('/api/admin/packages', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(formValues)
+                    });
+
+                    if (res.ok) {
+                        Swal.fire('Success', 'Package created successfully', 'success');
+                        loadPackages();
+                    } else {
+                        Swal.fire('Error', 'Failed to create package', 'error');
+                    }
+                } catch (err) {
+                    Swal.fire('Error', 'Server error', 'error');
+                }
+            }
+        }
+
+        async function editPackage(id, name, tokens, price, description, popular, active) {
+            const { value: formValues } = await Swal.fire({
+                title: 'Edit Package',
+                html: `
+                    <div style="text-align: left;">
+                        <input type="hidden" id="swal-pkg-id" value="${id}">
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label>Package Name</label>
+                            <input id="swal-pkg-name" class="swal2-input" value="${name}" style="margin: 0; width: 100%;">
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                            <div class="form-group" style="flex: 1;">
+                                <label>Tokens</label>
+                                <input id="swal-pkg-tokens" type="number" class="swal2-input" value="${tokens}" style="margin: 0; width: 100%;">
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label>Price (Rp)</label>
+                                <input id="swal-pkg-price" type="number" class="swal2-input" value="${price}" style="margin: 0; width: 100%;">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label>Description</label>
+                            <input id="swal-pkg-desc" class="swal2-input" value="${description}" style="margin: 0; width: 100%;">
+                        </div>
+                        <div style="display: flex; gap: 20px;">
+                            <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" id="swal-pkg-popular" ${popular ? 'checked' : ''}>
+                                <label for="swal-pkg-popular" style="margin: 0;">Popular</label>
+                            </div>
+                            <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" id="swal-pkg-active" ${active ? 'checked' : ''}>
+                                <label for="swal-pkg-active" style="margin: 0;">Active</label>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                focusConfirm: false,
+                confirmButtonText: 'Update Package',
+                showCancelButton: true,
+                preConfirm: () => {
+                    return {
+                        name: document.getElementById('swal-pkg-name').value,
+                        tokens: parseInt(document.getElementById('swal-pkg-tokens').value),
+                        price: parseInt(document.getElementById('swal-pkg-price').value),
+                        description: document.getElementById('swal-pkg-desc').value,
+                        popular: document.getElementById('swal-pkg-popular').checked,
+                        active: document.getElementById('swal-pkg-active').checked
+                    };
+                }
+            });
+
+            if (formValues) {
+                try {
+                    const res = await fetch(`/api/admin/packages/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(formValues)
+                    });
+
+                    if (res.ok) {
+                        Swal.fire('Success', 'Package updated successfully', 'success');
+                        loadPackages();
+                    } else {
+                        Swal.fire('Error', 'Failed to update package', 'error');
+                    }
+                } catch (err) {
+                    Swal.fire('Error', 'Server error', 'error');
+                }
+            }
+        }
+
+        async function deletePackage(id, name) {
+            const result = await Swal.fire({
+                title: 'Delete Package?',
+                text: `Are you sure you want to delete "${name}"?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'Yes, delete it'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    const res = await fetch(`/api/admin/packages/${id}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (res.ok) {
+                        Swal.fire('Deleted', 'Package deleted successfully', 'success');
+                        loadPackages();
+                    } else {
+                        Swal.fire('Error', 'Failed to delete package', 'error');
+                    }
+                } catch (err) {
+                    Swal.fire('Error', 'Server error', 'error');
+                }
+            }
+        }
+
         // Initial Load
         loadUsers();
         loadVouchers();
         loadTransactions();
         loadLogs();
+        loadPackages();
+        setInterval(loadLogs, 30000); // Reload logs every 30s
     </script>
 </body>
 

@@ -188,10 +188,24 @@ app.get('/scrape', ensureAuthenticated, async (req, res) => {
 });
 
 
-app.get('/', (req, res) => {
-    res.render('home', {
-        formurlfail: req.query.formurlfail ?? null
-    });
+app.get('/', async (req, res) => {
+    try {
+        const packages = await prisma.tokenPackage.findMany({
+            where: { active: true },
+            orderBy: { tokens: 'asc' }
+        });
+
+        res.render('home', {
+            formurlfail: req.query.formurlfail ?? null,
+            packages: packages
+        });
+    } catch (err) {
+        console.error('Error fetching packages:', err);
+        res.render('home', {
+            formurlfail: req.query.formurlfail ?? null,
+            packages: []
+        });
+    }
 });
 
 // --- MIDTRANS & PAYMENT ROUTES ---
@@ -1002,14 +1016,111 @@ async function addAdminLog(action, details, adminEmail, reason = '', targetUser 
                 action,
                 details,
                 reason: reason || null,
-                adminEmail,
-                targetUser: targetUser || null
+                targetUser: targetUser || null,
+                action: action,
+                details: details,
+                adminEmail: adminEmail
             }
         });
     } catch (err) {
         console.error('Failed to save admin log:', err);
     }
 }
+
+// API: Get Admin Logs (DB-backed)
+app.get('/api/admin/logs', ensureAdmin, async (req, res) => {
+    try {
+        const logs = await prisma.adminLog.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 100
+        });
+        res.json(logs);
+    } catch (err) {
+        console.error('Failed to fetch admin logs:', err);
+        res.status(500).json([]);
+    }
+});
+
+// --- PACKAGE MANAGEMENT APIs ---
+
+// Get all packages
+app.get('/api/admin/packages', ensureAdmin, async (req, res) => {
+    try {
+        const packages = await prisma.tokenPackage.findMany({
+            orderBy: { tokens: 'asc' }
+        });
+        res.json(packages);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch packages' });
+    }
+});
+
+// Create package
+app.post('/api/admin/packages', ensureAdmin, async (req, res) => {
+    try {
+        const { name, tokens, price, description, popular } = req.body;
+        const newPackage = await prisma.tokenPackage.create({
+            data: {
+                name,
+                tokens: parseInt(tokens),
+                price: parseInt(price),
+                description,
+                popular: popular === true || popular === 'true'
+            }
+        });
+
+        // Log action
+        addAdminLog('CREATE_PACKAGE', `Created package ${name} (${tokens} tokens for Rp${price})`, req.user.email);
+
+        res.json(newPackage);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to create package' });
+    }
+});
+
+// Update package
+app.put('/api/admin/packages/:id', ensureAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, tokens, price, description, popular, active } = req.body;
+
+        const updated = await prisma.tokenPackage.update({
+            where: { id },
+            data: {
+                name,
+                tokens: parseInt(tokens),
+                price: parseInt(price),
+                description,
+                popular: popular === true || popular === 'true',
+                active: active === true || active === 'true'
+            }
+        });
+
+        // Log action
+        addAdminLog('UPDATE_PACKAGE', `Updated package ${name}`, req.user.email);
+
+        res.json(updated);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update package' });
+    }
+});
+
+// Delete package
+app.delete('/api/admin/packages/:id', ensureAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const pkg = await prisma.tokenPackage.delete({
+            where: { id }
+        });
+
+        // Log action
+        addAdminLog('DELETE_PACKAGE', `Deleted package ${pkg.name}`, req.user.email);
+
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to delete package' });
+    }
+});
 
 // API: Add tokens to user (admin only)
 app.post('/api/admin/users/:id/tokens', ensureAdmin, async (req, res) => {
