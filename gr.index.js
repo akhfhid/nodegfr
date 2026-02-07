@@ -12,7 +12,6 @@ const formData = await page.evaluate(() => {
             name = nameEl.getAttribute('name');
         }
 
-        // Determine the type of the question
         let type = 'Unknown';
         if (el.querySelector('[role=presentation]')) type = 'Linear Scale';
         else if (el.querySelector('[role="radiogroup"]')) type = 'Multiple Choice';

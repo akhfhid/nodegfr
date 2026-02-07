@@ -19,6 +19,7 @@ model User {
   createdAt DateTime @default(now())
   
   tokenBalance Int      @default(5) // Default 5 tokens for trial
+  role          String   @default("USER") // USER, ADMIN
   transactions Transaction[]
   
   forms     Form[]
@@ -86,4 +87,36 @@ model Transaction {
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Voucher Info
+  voucherCode    String?
+  originalPrice  Int?
+  discountAmount Int?
+  
+  voucher        Voucher? @relation(fields: [voucherCode], references: [code])
+}
+
+model Voucher {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  percent   Int      // Discount percentage (e.g. 10 for 10%)
+  
+  description String?
+  active    Boolean  @default(true)
+  
+  transactions Transaction[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AdminLog {
+  id         String   @id @default(uuid())
+  action     String   // ADD_TOKENS, DEDUCT_TOKENS, etc.
+  details    String   @db.Text
+  reason     String?
+  adminEmail String
+  targetUser String?  // Email of the affected user
+  
+  createdAt  DateTime @default(now())
 }

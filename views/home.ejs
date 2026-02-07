@@ -13,8 +13,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Midtrans Snap -->
-    <script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js"
-        data-client-key="SB-Mid-client-Z8Geia9rIWaHRfHP"></script>
+    <script type="text/javascript" src="https://app.midtrans.com/snap/snap.js"
+        data-client-key="Mid-client-FizmXl2ytheMZJNY"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root {
             --bg-deep: #050505;
@@ -1003,6 +1004,11 @@
                 <a href="#" onclick="openTutorial(); return false;">Tutorial</a>
                 <% if (locals.user) { %>
                     <div class="user-menu" style="display:inline-flex; align-items:center; gap:10px; margin-left:15px;">
+                        <% if (locals.user.role === 'ADMIN') { %>
+                            <a href="/admin" style="text-decoration: none; color: var(--accent-warning); font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; border: 1px solid var(--accent-warning); padding: 4px 10px; border-radius: 20px;">
+                                <i class="fa-solid fa-shield-halved"></i> Admin
+                            </a>
+                        <% } %>
                         <img src="/user/avatar?v=<%= user.id %>" alt="Avatar" class="user-avatar"
                             style="width:32px;height:32px;border-radius:50%;" referrerpolicy="no-referrer"
                             onerror="this.src='https://ui-avatars.com/api/?name=<%= user.name %>'">
@@ -1199,7 +1205,7 @@
                     </div>
                 </div>
 
-                <button onclick="confirmPurchase()"
+                <button id="btnConfirmPurchase" onclick="confirmPurchase()"
                     style="width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 50px; font-size: 1.1rem; font-weight: 700; cursor: pointer;">
                     Bayar Sekarang
                 </button>
@@ -1315,59 +1321,302 @@
                                         if (purchaseModal) purchaseModal.style.display = 'none';
                                     }
 
+                                    let currentVoucherCode = null;
+                                    let currentDiscountPercent = 0;
+
                                     function updateModalPrice() {
                                         if (!modalTokenInput) return;
 
                                         let val = parseInt(modalTokenInput.value);
                                         if (!val || val < 1) val = 0; // Allow 0 for display
 
-                                        let rate = 500;
-                                        if (val >= 300) rate = 350;
-                                        else if (val >= 100) rate = 400;
+                                        let rate = 1; // TESTING MODE
+                                        // if (val >= 300) rate = 350;
+                                        // else if (val >= 100) rate = 400;
+
+                                        let total = val * rate;
+                                        let finalTotal = total;
+
+                                        if (currentDiscountPercent > 0) {
+                                            const discount = Math.floor((total * currentDiscountPercent) / 100);
+                                            finalTotal = total - discount;
+                                            
+                                            // Update UI for discount
+                                            const discountDisplay = document.getElementById('discountDisplay');
+                                            if (discountDisplay) {
+                                                discountDisplay.style.display = 'block';
+                                                discountDisplay.innerText = `Hemat ${currentDiscountPercent}% (-Rp ${discount.toLocaleString('id-ID')})`;
+                                            }
+                                            
+                                            // Strikethrough original price if you wanted, but here explicitly showing total
+                                        } else {
+                                             const discountDisplay = document.getElementById('discountDisplay');
+                                             if (discountDisplay) discountDisplay.style.display = 'none';
+                                        }
 
                                         if (modalRateDisplay) modalRateDisplay.innerText = `Harga: Rp ${rate} / resp`;
                                         if (modalTokenCount) modalTokenCount.innerText = `${val} pcs`;
-                                        if (modalTotalPrice) modalTotalPrice.innerText = `Rp ${(val * rate).toLocaleString('id-ID')}`;
+                                        if (modalTotalPrice) modalTotalPrice.innerText = `Rp ${finalTotal.toLocaleString('id-ID')}`;
                                     }
 
+                                    async function checkVoucher() {
+                                        const input = document.getElementById('voucherCodeInput');
+                                        const msg = document.getElementById('voucherMessage');
+                                        const code = input.value.trim();
+
+                                        if (!code) return;
+
+                                        try {
+                                            const res = await fetch('/api/voucher/check', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ code })
+                                            });
+                                            const data = await res.json();
+
+                                            if (data.valid) {
+                                                currentVoucherCode = data.code;
+                                                currentDiscountPercent = data.percent;
+                                                msg.style.color = 'var(--accent-success)';
+                                                msg.innerText = `Voucher dipakai! Diskon ${data.percent}%`;
+                                                updateModalPrice();
+                                            } else {
+                                                currentVoucherCode = null;
+                                                currentDiscountPercent = 0;
+                                                msg.style.color = 'var(--accent-danger)';
+                                                msg.innerText = data.message || "Kode tidak valid";
+                                                updateModalPrice();
+                                            }
+                                        } catch (e) {
+                                            console.error(e);
+                                            msg.innerText = "Error checking voucher";
+                                        }
+                                    }
+                                    
+                                    // Reset voucher when opening modal
+                                    const originalOpenPurchaseModal = openPurchaseModal;
+                                    openPurchaseModal = function(defaultAmount) {
+                                        currentVoucherCode = null;
+                                        currentDiscountPercent = 0;
+                                        const vInput = document.getElementById('voucherCodeInput');
+                                        const vMsg = document.getElementById('voucherMessage');
+                                        if (vInput) vInput.value = '';
+                                        if (vMsg) vMsg.innerText = '';
+                                        
+                                        // Call original logic (copied here because redefining)
+                                        <% if (!locals.user) { %>
+                                            window.location.href = '/auth/google';
+                                            return;
+                                        <% } %>
+                                        if (modalTokenInput) {
+                                            modalTokenInput.value = defaultAmount;
+                                            updateModalPrice();
+                                        }
+                                        if (purchaseModal) purchaseModal.style.display = 'flex';
+                                    }
+
+
+                                    const Toast = Swal.mixin({
+                                        toast: true,
+                                        position: 'top-end',
+                                        showConfirmButton: false,
+                                        timer: 3000,
+                                        timerProgressBar: true,
+                                        didOpen: (toast) => {
+                                            toast.addEventListener('mouseenter', Swal.stopTimer)
+                                            toast.addEventListener('mouseleave', Swal.resumeTimer)
+                                        }
+                                    });
+
                                     async function confirmPurchase() {
+                                        const btn = document.getElementById('btnConfirmPurchase');
+                                        const originalText = btn.innerText;
+                                        
+                                        // Get initial balance for comparison
+                                        const mobileBalanceEl = document.getElementById('mobileTokenBalance');
+                                        let initialBalance = 0;
+                                        if (mobileBalanceEl) {
+                                            initialBalance = parseInt(mobileBalanceEl.innerText.trim()) || 0;
+                                        }
+
                                         const tokens = modalTokenInput.value;
                                         if (tokens < 1) {
-                                            alert("Minimal pembelian adalah 1 responden.");
+                                            Toast.fire({ icon: 'warning', title: 'Minimal pembelian adalah 1 responden.' });
                                             return;
                                         }
+
+                                        // Disable button
+                                        btn.disabled = true;
+                                        btn.innerText = "Memproses...";
+                                        btn.style.opacity = "0.7";
+                                        btn.style.cursor = "not-allowed";
 
                                         try {
                                             const response = await fetch('/api/purchase', {
                                                 method: 'POST',
                                                 headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ tokens: parseInt(tokens) })
+                                                body: JSON.stringify({ 
+                                                    tokens: parseInt(tokens),
+                                                    voucherCode: currentVoucherCode 
+                                                })
                                             });
                                             const data = await response.json();
 
                                             if (data.snapToken) {
+                                                const orderId = data.orderId;
+                                                
+                                                // START POLLING IMMEDIATELY (Outside onSuccess)
+                                                // This allows us to detect success even if user doesn't click "Finish" in popup
+                                                let attempts = 0;
+                                                const maxAttempts = 60; // 60 * 2s = 120 seconds max
+                                                let isPollingActive = true; // Flag to stop polling
+                                                
+                                                const stopPolling = () => {
+                                                    isPollingActive = false;
+                                                    if (pollInterval) clearInterval(pollInterval);
+                                                };
+                                                
+                                                const pollInterval = setInterval(async () => {
+                                                    if (!isPollingActive) {
+                                                        clearInterval(pollInterval);
+                                                        return;
+                                                    }
+                                                    attempts++;
+                                                    try {
+                                                        // Check status via backend (which checks Midtrans)
+                                                        const checkRes = await fetch(`/api/transaction/check/${orderId}`);
+                                                        const checkData = await checkRes.json();
+                                                        
+                                                        if (checkData.status === 'SUCCESS') {
+                                                            // Payment Success!
+                                                            stopPolling();
+                                                            
+                                                            // Update User Balance in UI
+                                                            const resMe = await fetch('/api/me');
+                                                            const user = await resMe.json();
+                                                            updateBalanceUI(user.tokenBalance);
+                                                            
+                                                            // Close Snap Popup First
+                                                            try {
+                                                                if (window.snap && typeof window.snap.hide === 'function') {
+                                                                    window.snap.hide();
+                                                                }
+                                                            } catch(e) {}
+                                                            
+                                                            // Show BIG SUCCESS Modal with SweetAlert
+                                                            Swal.fire({
+                                                                icon: 'success',
+                                                                title: 'Pembayaran Berhasil!',
+                                                                html: `<div style="font-size: 1.1rem;">
+                                                                    <p>Token kamu berhasil ditambahkan!</p>
+                                                                    <p style="margin-top: 10px; font-size: 1.5rem; font-weight: bold; color: #10b981;">
+                                                                        +${checkData.tokens} Tokens
+                                                                    </p>
+                                                                    <p style="margin-top: 10px; color: #666;">Total Token: ${user.tokenBalance} tokens</p>
+                                                                </div>`,
+                                                                confirmButtonText: 'Mantap!',
+                                                                confirmButtonColor: '#8b5cf6',
+                                                                allowOutsideClick: false
+                                                            });
+                                                            
+                                                            resetButton();
+                                                            closePurchaseModal();
+                                                        } else if (checkData.status === 'FAILED') {
+                                                            stopPolling();
+                                                            Swal.fire({
+                                                                icon: 'error',
+                                                                title: 'Pembayaran Gagal',
+                                                                text: 'Transaksi dibatalkan atau gagal diproses.',
+                                                                confirmButtonColor: '#ef4444'
+                                                            });
+                                                            resetButton();
+                                                            closePurchaseModal();
+                                                        } else if (attempts >= maxAttempts) {
+                                                            stopPolling();
+                                                            // Timeout - stop polling but don't show error (user might still be paying)
+                                                        }
+                                                    } catch (err) {
+                                                        console.error("Polling error", err);
+                                                    }
+                                                }, 2000);
+
                                                 window.snap.pay(data.snapToken, {
                                                     onSuccess: function (result) {
-                                                        alert("Pembayaran berhasil!");
-                                                        window.location.reload();
+                                                        // Midtrans says success - force check and update
+                                                        stopPolling();
+                                                        
+                                                        // Fetch updated status immediately
+                                                        fetch(`/api/transaction/check/${orderId}`)
+                                                            .then(r => r.json())
+                                                            .then(async checkData => {
+                                                                const resMe = await fetch('/api/me');
+                                                                const user = await resMe.json();
+                                                                updateBalanceUI(user.tokenBalance);
+                                                                
+                                                                Swal.fire({
+                                                                    icon: 'success',
+                                                                    title: 'Pembayaran Berhasil!',
+                                                                    html: `<div style="font-size: 1.1rem;">
+                                                                        <p>Token kamu berhasil ditambahkan!</p>
+                                                                        <p style="margin-top: 10px; font-size: 1.5rem; font-weight: bold; color: #10b981;">
+                                                                            +${checkData.tokens} Tokens
+                                                                        </p>
+                                                                        <p style="margin-top: 10px; color: #666;">Total Token: ${user.tokenBalance} tokens</p>
+                                                                    </div>`,
+                                                                    confirmButtonText: 'Mantap!',
+                                                                    confirmButtonColor: '#8b5cf6',
+                                                                    allowOutsideClick: false
+                                                                });
+                                                            });
+                                                        
+                                                        resetButton();
+                                                        closePurchaseModal();
                                                     },
                                                     onPending: function (result) {
-                                                        alert("Menunggu pembayaran...");
+                                                        Toast.fire({ icon: 'info', title: 'Menunggu pembayaran...' });
                                                     },
                                                     onError: function (result) {
-                                                        alert("Pembayaran gagal!");
+                                                        Swal.fire({
+                                                            icon: 'error',
+                                                            title: 'Pembayaran Gagal',
+                                                            text: 'Terjadi kesalahan saat memproses pembayaran.',
+                                                            confirmButtonColor: '#ef4444'
+                                                        });
+                                                        stopPolling();
+                                                        resetButton();
                                                     },
                                                     onClose: function () {
-                                                        alert('Anda menutup popup tanpa menyelesaikan pembayaran');
+                                                        setTimeout(() => {
+                                                            stopPolling();
+                                                            resetButton();
+                                                        }, 10000); 
                                                     }
                                                 });
-                                                closePurchaseModal();
                                             } else {
-                                                alert("Gagal membuat transaksi: " + (data.error || "Unknown error"));
+                                                Toast.fire({ icon: 'error', title: data.error || "Gagal membuat transaksi" });
+                                                resetButton();
                                             }
                                         } catch (e) {
                                             console.error(e);
-                                            alert("Terjadi kesalahan sistem");
+                                            Toast.fire({ icon: 'error', title: 'Terjadi kesalahan sistem' });
+                                            resetButton();
+                                        }
+
+                                        function updateBalanceUI(newBalance) {
+                                            const mobileBal = document.getElementById('mobileTokenBalance');
+                                            if (mobileBal) mobileBal.innerText = newBalance;
+                                            
+                                            const desktopBal = document.querySelector('.user-balance');
+                                            if (desktopBal) {
+                                                desktopBal.innerHTML = `<i class="fa-solid fa-coins" style="color: gold; margin-right: 5px;"></i> ${newBalance}`;
+                                            }
+                                        }
+
+                                        function resetButton() {
+                                            btn.disabled = false;
+                                            btn.innerText = originalText;
+                                            btn.style.opacity = "1";
+                                            btn.style.cursor = "pointer";
                                         }
                                     }
 

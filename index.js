@@ -55,6 +55,22 @@ function ensureAuthenticated(req, res, next) {
     res.redirect('/auth/google');
 }
 
+// Admin Middleware - Only allow autofill.site@gmail.com
+const ADMIN_EMAIL = 'autofill.site@gmail.com';
+
+function ensureAdmin(req, res, next) {
+    if (!req.isAuthenticated()) {
+        return res.redirect('/auth/google');
+    }
+    if (req.user.email !== ADMIN_EMAIL) {
+        return res.status(403).render('home', {
+            formurlfail: 'Access Denied. Admin only.'
+        });
+    }
+    return next();
+}
+
+
 // --- ROUTES ---
 
 // Auth Routes
@@ -191,13 +207,8 @@ app.post('/api/purchase', ensureAuthenticated, async (req, res) => {
     }
 
     // 2. Calculate Price (Server-Side Validation)
-    // Tiers: 1-99 (500), 100-299 (400), 300+ (350)
-    let rate = 500;
-    if (tokenCount >= 300) {
-        rate = 350;
-    } else if (tokenCount >= 100) {
-        rate = 400;
-    }
+    // Flat rate: 1 per token (for testing)
+    let rate = 1;
 
     let totalAmount = tokenCount * rate;
     const packageId = `CUSTOM-${tokenCount}`;
@@ -242,7 +253,7 @@ app.post('/api/purchase', ensureAuthenticated, async (req, res) => {
             data: { snapToken: snapToken }
         });
 
-        res.json({ snapToken });
+        res.json({ snapToken, orderId });
 
     } catch (e) {
         console.error("Midtrans Error:", e);
@@ -306,6 +317,103 @@ app.post('/api/midtrans/notification', express.json(), async (req, res) => {
     } catch (e) {
         console.error("Midtrans Notification Error:", e);
         res.status(500).send('Error');
+    }
+});
+
+// API: Get current user info (for real-time balance updates)
+app.get('/api/me', ensureAuthenticated, async (req, res) => {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: req.user.id },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                tokenBalance: true
+            }
+        });
+        res.json(user);
+    } catch (error) {
+        console.error('API /api/me Error:', error);
+        res.status(500).json({ error: 'Failed to fetch user' });
+    }
+});
+
+// API: Check transaction status (for payment polling)
+// Also syncs with Midtrans if status is still PENDING (for localhost where webhooks don't work)
+app.get('/api/transaction/check/:orderId', ensureAuthenticated, async (req, res) => {
+    try {
+        const { orderId } = req.params;
+
+        let transaction = await prisma.transaction.findUnique({
+            where: { id: orderId }
+        });
+
+        if (!transaction) {
+            return res.status(404).json({ error: 'Transaction not found' });
+        }
+
+        // Verify ownership
+        if (transaction.userId !== req.user.id) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        // If still PENDING, try to sync with Midtrans directly
+        if (transaction.status === 'PENDING') {
+            try {
+                const statusResponse = await snap.transaction.status(orderId);
+                const transactionStatus = statusResponse.transaction_status;
+                const fraudStatus = statusResponse.fraud_status;
+
+                console.log(`[MIDTRANS SYNC] Order ${orderId}: ${transactionStatus}`);
+
+                let dbStatus = 'PENDING';
+                if (transactionStatus === 'capture') {
+                    dbStatus = fraudStatus === 'accept' ? 'SUCCESS' : 'CHALLENGE';
+                } else if (transactionStatus === 'settlement') {
+                    dbStatus = 'SUCCESS';
+                } else if (['cancel', 'deny', 'expire'].includes(transactionStatus)) {
+                    dbStatus = 'FAILED';
+                }
+
+                // Update if status changed
+                if (dbStatus !== 'PENDING') {
+                    if (dbStatus === 'SUCCESS' && transaction.status !== 'SUCCESS') {
+                        // Add tokens to user
+                        await prisma.$transaction([
+                            prisma.transaction.update({
+                                where: { id: orderId },
+                                data: { status: 'SUCCESS' }
+                            }),
+                            prisma.user.update({
+                                where: { id: transaction.userId },
+                                data: { tokenBalance: { increment: transaction.tokens } }
+                            })
+                        ]);
+                        console.log(`[MIDTRANS SYNC] Success! Added ${transaction.tokens} tokens to user ${transaction.userId}`);
+                        transaction.status = 'SUCCESS';
+                    } else {
+                        await prisma.transaction.update({
+                            where: { id: orderId },
+                            data: { status: dbStatus }
+                        });
+                        transaction.status = dbStatus;
+                    }
+                }
+            } catch (midtransError) {
+                // Midtrans API call failed - just return current DB status
+                console.error('Midtrans status check error:', midtransError.message);
+            }
+        }
+
+        res.json({
+            status: transaction.status,
+            tokens: transaction.tokens,
+            orderId: transaction.id
+        });
+    } catch (error) {
+        console.error('API Transaction Check Error:', error);
+        res.status(500).json({ error: 'Failed to check transaction' });
     }
 });
 
@@ -664,6 +772,305 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
         });
     }
 }
+
+// --- ADMIN ROUTES ---
+
+// Admin Dashboard Page
+app.get('/admin', ensureAdmin, async (req, res) => {
+    try {
+        // Get summary stats
+        const totalUsers = await prisma.user.count();
+
+        // Token stats from transactions
+        const purchaseAgg = await prisma.transaction.aggregate({
+            where: {
+                status: 'SUCCESS',
+                tokens: { gt: 0 }
+            },
+            _sum: { tokens: true }
+        });
+        const totalTokensPurchased = purchaseAgg._sum.tokens || 0;
+
+        const usageAgg = await prisma.transaction.aggregate({
+            where: {
+                status: 'SUCCESS',
+                tokens: { lt: 0 }
+            },
+            _sum: { tokens: true }
+        });
+        const totalTokensUsed = Math.abs(usageAgg._sum.tokens || 0);
+
+        // Total forms filled (jobs completed)
+        const totalFormsFilled = await prisma.job.aggregate({
+            _sum: { successCount: true }
+        });
+
+        // Active vouchers count
+        const activeVouchers = await prisma.voucher.count({
+            where: { active: true }
+        });
+
+        res.render('admin', {
+            stats: {
+                totalUsers,
+                totalTokensPurchased,
+                totalTokensUsed,
+                totalFormsFilled: totalFormsFilled._sum.successCount || 0,
+                activeVouchers
+            }
+        });
+    } catch (error) {
+        console.error('Admin Dashboard Error:', error);
+        res.status(500).send('Error loading admin dashboard');
+    }
+});
+
+// API: Get all users with stats
+app.get('/api/admin/users', ensureAdmin, async (req, res) => {
+    try {
+        const users = await prisma.user.findMany({
+            include: {
+                transactions: {
+                    where: { status: 'SUCCESS' }
+                },
+                forms: {
+                    include: {
+                        configs: {
+                            include: {
+                                jobs: true
+                            }
+                        }
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        const usersWithStats = users.map(user => {
+            const tokensPurchased = user.transactions
+                .filter(t => t.tokens > 0 && !t.package.startsWith('ADMIN-'))
+                .reduce((sum, t) => sum + t.tokens, 0);
+            const tokensUsed = Math.abs(user.transactions
+                .filter(t => t.tokens < 0 && !t.package.startsWith('ADMIN-'))
+                .reduce((sum, t) => sum + t.tokens, 0));
+
+            let formsFilled = 0;
+            user.forms.forEach(form => {
+                form.configs.forEach(config => {
+                    config.jobs.forEach(job => {
+                        formsFilled += job.successCount;
+                    });
+                });
+            });
+
+            return {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                avatar: user.avatar,
+                tokenBalance: user.tokenBalance,
+                tokensPurchased,
+                tokensUsed,
+                formsFilled,
+                createdAt: user.createdAt
+            };
+        });
+
+        res.json(usersWithStats);
+    } catch (error) {
+        console.error('API Admin Users Error:', error);
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
+// API: Get all vouchers
+app.get('/api/admin/vouchers', ensureAdmin, async (req, res) => {
+    try {
+        const vouchers = await prisma.voucher.findMany({
+            include: {
+                _count: {
+                    select: { transactions: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(vouchers);
+    } catch (error) {
+        console.error('API Admin Vouchers Error:', error);
+        res.status(500).json({ error: 'Failed to fetch vouchers' });
+    }
+});
+
+// API: Create voucher
+app.post('/api/admin/vouchers', ensureAdmin, async (req, res) => {
+    try {
+        const { code, percent, description } = req.body;
+
+        if (!code || !percent) {
+            return res.status(400).json({ error: 'Code and percent are required' });
+        }
+
+        const voucher = await prisma.voucher.create({
+            data: {
+                code: code.toUpperCase(),
+                percent: parseInt(percent),
+                description: description || null,
+                active: true
+            }
+        });
+
+        res.json(voucher);
+    } catch (error) {
+        if (error.code === 'P2002') {
+            return res.status(400).json({ error: 'Voucher code already exists' });
+        }
+        console.error('API Create Voucher Error:', error);
+        res.status(500).json({ error: 'Failed to create voucher' });
+    }
+});
+
+// API: Toggle voucher active status
+app.put('/api/admin/vouchers/:id', ensureAdmin, async (req, res) => {
+    try {
+        const voucher = await prisma.voucher.findUnique({
+            where: { id: req.params.id }
+        });
+
+        if (!voucher) {
+            return res.status(404).json({ error: 'Voucher not found' });
+        }
+
+        const updated = await prisma.voucher.update({
+            where: { id: req.params.id },
+            data: { active: !voucher.active }
+        });
+
+        res.json(updated);
+    } catch (error) {
+        console.error('API Toggle Voucher Error:', error);
+        res.status(500).json({ error: 'Failed to update voucher' });
+    }
+});
+
+// API: Delete voucher
+app.delete('/api/admin/vouchers/:id', ensureAdmin, async (req, res) => {
+    try {
+        await prisma.voucher.delete({
+            where: { id: req.params.id }
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('API Delete Voucher Error:', error);
+        res.status(500).json({ error: 'Failed to delete voucher' });
+    }
+});
+
+// API: Get all transactions
+app.get('/api/admin/transactions', ensureAdmin, async (req, res) => {
+    try {
+        const transactions = await prisma.transaction.findMany({
+            include: {
+                user: {
+                    select: { name: true, email: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 100
+        });
+        res.json(transactions);
+    } catch (error) {
+        console.error('API Admin Transactions Error:', error);
+        res.status(500).json({ error: 'Failed to fetch transactions' });
+    }
+});
+
+// Save admin log to database
+async function addAdminLog(action, details, adminEmail, reason = '', targetUser = '') {
+    try {
+        await prisma.adminLog.create({
+            data: {
+                action,
+                details,
+                reason: reason || null,
+                adminEmail,
+                targetUser: targetUser || null
+            }
+        });
+    } catch (err) {
+        console.error('Failed to save admin log:', err);
+    }
+}
+
+// API: Add tokens to user (admin only)
+app.post('/api/admin/users/:id/tokens', ensureAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { tokens, reason } = req.body;
+        const tokenCount = parseInt(tokens);
+
+        if (isNaN(tokenCount) || tokenCount === 0) {
+            return res.status(400).json({ error: 'Invalid token count' });
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id }
+        });
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Update user balance
+        const updatedUser = await prisma.user.update({
+            where: { id },
+            data: { tokenBalance: { increment: tokenCount } }
+        });
+
+        // Create transaction record
+        await prisma.transaction.create({
+            data: {
+                id: `ADMIN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                userId: id,
+                package: `ADMIN-${tokenCount > 0 ? 'ADD' : 'DELETE'}`,
+                amount: 0,
+                tokens: tokenCount,
+                status: 'SUCCESS'
+            }
+        });
+
+        // Log admin action to database
+        await addAdminLog(
+            tokenCount > 0 ? 'ADD_TOKENS' : 'DELETE_TOKENS',
+            `${Math.abs(tokenCount)} tokens ${tokenCount > 0 ? 'added to' : 'deleted from'} ${user.email}`,
+            req.user.email,
+            reason || '-',
+            user.email
+        );
+
+        res.json({
+            success: true,
+            newBalance: updatedUser.tokenBalance,
+            message: `${Math.abs(tokenCount)} tokens ${tokenCount > 0 ? 'added' : 'deleted'} successfully`
+        });
+    } catch (error) {
+        console.error('API Add Tokens Error:', error);
+        res.status(500).json({ error: 'Failed to update tokens' });
+    }
+});
+
+// API: Get admin logs from database
+app.get('/api/admin/logs', ensureAdmin, async (req, res) => {
+    try {
+        const logs = await prisma.adminLog.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 100
+        });
+        res.json(logs);
+    } catch (error) {
+        console.error('API Admin Logs Error:', error);
+        res.status(500).json({ error: 'Failed to fetch logs' });
+    }
+});
 
 app.listen(PORT, () => {
     console.log(`Example app listening on port ${PORT}`);

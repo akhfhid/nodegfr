@@ -28,6 +28,9 @@ passport.use(new GoogleStrategy({
                 where: { googleId: profile.id }
             });
 
+            const adminEmail = 'autofill.site@gmail.com';
+            const role = profile.emails[0].value === adminEmail ? 'ADMIN' : 'USER';
+
             if (!user) {
                 // Create new user
                 user = await prisma.user.create({
@@ -35,16 +38,19 @@ passport.use(new GoogleStrategy({
                         googleId: profile.id,
                         email: profile.emails[0].value,
                         name: profile.displayName,
-                        avatar: profile.photos && profile.photos.length > 0 ? profile.photos[0].value : null
+                        avatar: profile.photos && profile.photos.length > 0 ? profile.photos[0].value : null,
+                        role: role
                     }
                 });
             } else {
-                // Update existing user avatar/name to keep it fresh
+                // Update existing user
+                // FORCE Update role based on email to ensure security
                 user = await prisma.user.update({
                     where: { id: user.id },
                     data: {
                         name: profile.displayName,
-                        avatar: profile.photos && profile.photos.length > 0 ? profile.photos[0].value : user.avatar
+                        avatar: profile.photos && profile.photos.length > 0 ? profile.photos[0].value : user.avatar,
+                        role: role
                     }
                 });
             }
