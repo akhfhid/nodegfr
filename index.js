@@ -709,28 +709,94 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
                 // Select Random User-Agent
                 const randomUA = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 
-                const status = await new Promise((resolve) => {
+                const result = await new Promise((resolve) => {
+                    // Parse URL to extract hostname, path, and form data
+                    const url = new URL(finalUrl);
+                    let formData = url.search.substring(1); // Remove leading '?'
+
+                    // CRITICAL FIX: Filter out non-entry parameters (like usp=header)
+                    const params = new URLSearchParams(formData);
+                    const cleanParams = new URLSearchParams();
+                    for (const [key, value] of params.entries()) {
+                        if (key.startsWith('entry.') || key.includes('other_option_response')) {
+                            cleanParams.append(key, value);
+                        }
+                    }
+                    formData = cleanParams.toString();
+
+                    // Remove trailing & if present
+                    formData = formData.replace(/&+$/, '');
+
+                    // DEBUG: Log exact request details
+                    console.log(`[POST DEBUG] Full URL: ${finalUrl}`);
+                    console.log(`[POST DEBUG] Form Data Length: ${formData.length}`);
+                    console.log(`[POST DEBUG] Form Data (last 100 chars): ...${formData.slice(-100)}`);
+
                     const options = {
+                        hostname: url.hostname,
+                        path: url.pathname,
+                        method: 'POST',
                         headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Content-Length': Buffer.byteLength(formData),
                             'User-Agent': randomUA
                         }
                     };
 
-                    const req = https.get(finalUrl, options, (response) => {
-                        resolve(response.statusCode);
+                    const req = https.request(options, (response) => {
+                        let responseBody = '';
+                        response.on('data', (chunk) => {
+                            responseBody += chunk;
+                        });
+                        response.on('end', () => {
+                            console.log(`[POST DEBUG] Response Status: ${response.statusCode}`);
+                            console.log(`[POST DEBUG] Response Body Length: ${responseBody.length}`);
+
+                            // Check for error indicators in response
+                            if (responseBody.includes('entry.') && responseBody.includes('required')) {
+                                console.log(`[POST ERROR] ❌ Google Forms validation error detected!`);
+                                console.log(`[POST ERROR] Response preview: ${responseBody.substring(0, 500)}`);
+                            } else if (responseBody.length < 10000) {
+                                console.log(`[POST WARNING] ⚠️ Unusually short response - possible error`);
+                                console.log(`[POST WARNING] Response: ${responseBody.substring(0, 300)}`);
+                            } else {
+                                console.log(`[POST SUCCESS] ✅ Response looks normal`);
+                            }
+
+                            resolve({
+                                status: response.statusCode,
+                                location: response.headers.location || null,
+                                body: responseBody
+                            });
+                        });
                     });
+
                     req.on('error', (e) => {
-                        resolve('ERROR');
+                        console.error(`[JOB ERROR] Request failed: ${e.message}`);
+                        resolve({ status: 'ERROR', location: null });
                     });
+
+                    // Write form data to request body
+                    req.write(formData);
+                    req.end();
                 });
+
+                const { status, location } = result;
 
                 if (status == 200 || status == 201) {
                     globalJob.success++;
+                    console.log(`[JOB SUCCESS] Status: ${status} | URL: ...${u.slice(-70)}`);
                 } else {
-                    console.log(`[JOB FAIL] Status: ${status} | URL: ...${u.slice(-50)}`);
+                    console.log(`[JOB] Status: ${status} | Redirect: ${location || 'None'} | URL: ...${u.slice(-50)}`);
                     // Check if it's a redirect (common in Google Forms)
                     if (status >= 300 && status < 400) {
-                        console.log(`[JOB INFO] Redirect detected. Usually means success but we aren't following it.`);
+                        // For Google Forms, successful submissions often get 200 directly
+                        // If we get a redirect, it might be an error or validation issue
+                        // Log it as potential issue
+                        console.log(`[JOB WARNING] Redirect detected - might indicate validation error!`);
+                        console.log(`[JOB WARNING] Redirect to: ${location}`);
+
+                        // Still count as success for now, but log for investigation
                         globalJob.success++;
                     } else {
                         globalJob.fail++;
@@ -740,7 +806,7 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
                                 data: {
                                     jobId: jobId,
                                     status: 'FAIL',
-                                    message: `Status: ${status} | URL: ${finalUrl}`
+                                    message: `Status: ${status} | Redirect: ${location} | URL: ${finalUrl}`
                                 }
                             });
                         }
@@ -1264,12 +1330,22 @@ function decodeToGoogleFormUrl(baseUrl, data, selections = []) {
         pageHistory = Array.from({ length: pages + 1 }, (_, i) => i).join(',');
     }
 
-    urlParams.append('pageHistory', pageHistory);
+    // Only append pageHistory for multi-page forms
+    // Single-page forms (pageHistory="0") don't need this parameter
+    if (pageHistory !== "0") {
+        urlParams.append('pageHistory', pageHistory);
+        console.log(`[URL BUILDER] Multi-page form detected - adding pageHistory: ${pageHistory}`);
+    } else {
+        console.log(`[URL BUILDER] Single-page form detected - skipping pageHistory parameter`);
+    }
 
     console.log(`[URL BUILDER] Final Page Count: ${pages} -> pageHistory: ${pageHistory}`);
     console.log(`[URL BUILDER] Full Params: ${urlParams.toString()}`);
 
-    return `${baseUrl}&${urlParams.toString()}`;
+    // FIX: Check if baseUrl already has query parameters
+    // If it has ?usp=header or other params, use & instead of ?
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    return `${baseUrl}${separator}${urlParams.toString()}`;
 }
 
 function parseData(formData) {

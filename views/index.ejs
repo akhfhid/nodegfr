@@ -1255,7 +1255,13 @@
 
                                     <% } else if (q.type==="Multiple Choice" ) { %>
                                       <ul class="answer-options">
-                                        <% q.options.forEach((option, index)=> { %>
+                                        <% q.options.forEach((option, index)=> {
+                                          const baseShare = Math.floor(100 / q.options.length * 100) / 100;
+                                          const isLastOption = index === q.options.length - 1;
+                                          const equalShare = isLastOption
+                                          ? (100 - baseShare * (q.options.length - 1)).toFixed(2)
+                                          : baseShare.toFixed(2);
+                                          %>
                                           <li>
                                             <label>
                                               <%= option %>
@@ -1263,11 +1269,14 @@
                                             <input type="hidden" name="<%= q.name %>_answers[]" value="<%= option %>">
                                             <div class="percent-input-wrapper">
                                               <input type="range" data-order="<%= index %>"
-                                                data-target-name="<%= q.name %>_chances[]" value="0" min="0" max="100">
+                                                data-target-name="<%= q.name %>_chances[]" value="<%= equalShare %>"
+                                                min="0" max="100">
                                             </div>
-                                            <input type="hidden" name="<%= q.name %>_chances[]" value="0" min="0"
-                                              max="100" required>
-                                            <div class="calc-display">0.00</div>
+                                            <input type="hidden" name="<%= q.name %>_chances[]"
+                                              value="<%= equalShare %>" min="0" max="100" required>
+                                            <div class="calc-display">
+                                              <%= equalShare %>
+                                            </div>
                                           </li>
                                           <% }) %>
                                       </ul>
@@ -1279,7 +1288,7 @@
                                         </button>
                                         <% } %>
                                           <div class="chance-total" data-question="<%= q.name %>">
-                                            <div class="status-dot"></div> <span class="val">Total: 0%</span>
+                                            <div class="status-dot"></div> <span class="val">Total: 100%</span>
                                           </div>
 
                                           <% } else if (q.type==="Checkboxes" ) { %>
@@ -1320,7 +1329,13 @@
 
                                                 <% } else if (q.type==="Dropdown" ) { %>
                                                   <ul class="answer-options">
-                                                    <% q.options.forEach((option, index)=> { %>
+                                                    <% q.options.forEach((option, index)=> {
+                                                      const baseShare = Math.floor(100 / q.options.length * 100) / 100;
+                                                      const isLastOption = index === q.options.length - 1;
+                                                      const equalShare = isLastOption
+                                                      ? (100 - baseShare * (q.options.length - 1)).toFixed(2)
+                                                      : baseShare.toFixed(2);
+                                                      %>
                                                       <li>
                                                         <label>
                                                           <%= option %>:
@@ -1329,17 +1344,19 @@
                                                           value="<%= option %>">
                                                         <div class="percent-input-wrapper">
                                                           <input type="range" data-order="<%= index %>"
-                                                            data-target-name="<%= q.name %>_chances[]" value="0" min="0"
-                                                            max="100">
+                                                            data-target-name="<%= q.name %>_chances[]"
+                                                            value="<%= equalShare %>" min="0" max="100">
                                                         </div>
-                                                        <input type="hidden" name="<%= q.name %>_chances[]" value="0"
-                                                          min="0" max="100" required>
-                                                        <div class="calc-display">0.00</div>
+                                                        <input type="hidden" name="<%= q.name %>_chances[]"
+                                                          value="<%= equalShare %>" min="0" max="100" required>
+                                                        <div class="calc-display">
+                                                          <%= equalShare %>
+                                                        </div>
                                                       </li>
                                                       <% }) %>
                                                   </ul>
                                                   <div class="chance-total" data-question="<%= q.name %>">
-                                                    <div class="status-dot"></div> <span class="val">Total: 0%</span>
+                                                    <div class="status-dot"></div> <span class="val">Total: 100%</span>
                                                   </div>
 
                                                   <% } else if (q.type==="Linear Scale" ) { %>
@@ -1358,7 +1375,17 @@
                                                             <ul class="answer-options">
                                                               <% } %>
 
-                                                                <% q.options.forEach((option, index)=> { %>
+                                                                <% q.options.forEach((option, index)=> {
+                                                                  // Calculate equal share ensuring total = 100%
+                                                                  const baseShare = Math.floor(100 / q.options.length *
+                                                                  100) / 100;
+                                                                  const isLastOption = index === q.options.length - 1;
+                                                                  const equalShare = isLastOption
+                                                                  ? (100 - baseShare * (q.options.length -
+                                                                  1)).toFixed(2)
+                                                                  : baseShare.toFixed(2);
+                                                                  %>
+
                                                                   <li
                                                                     style="display: flex; align-items: center; gap: 10px; padding: 5px 0;">
                                                                     <div
@@ -1371,11 +1398,14 @@
                                                                     <div class="percent-input-wrapper">
                                                                       <input type="range" data-order="<%= index %>"
                                                                         data-target-name="<%= q.name %>_chances[]"
-                                                                        value="0" min="0" max="100">
+                                                                        value="<%= equalShare %>" min="0" max="100">
                                                                     </div>
                                                                     <input type="hidden" name="<%= q.name %>_chances[]"
-                                                                      value="0" min="0" max="100" required>
-                                                                    <div class="calc-display">0.00</div>
+                                                                      value="<%= equalShare %>" min="0" max="100"
+                                                                      required>
+                                                                    <div class="calc-display">
+                                                                      <%= equalShare %>
+                                                                    </div>
                                                                   </li>
                                                                   <% }) %>
 
@@ -1395,7 +1425,7 @@
                                                         <% } %>
                                                           <div class="chance-total" data-question="<%= q.name %>">
                                                             <div class="status-dot"></div> <span class="val">Total:
-                                                              0%</span>
+                                                              100%</span>
                                                           </div>
                                                           <% } %>
                               </div>
