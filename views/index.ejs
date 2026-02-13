@@ -2298,7 +2298,11 @@
             // --- PERSISTENCE LOGIC (AUTO SAVE/LOAD) ---
             const STORAGE_KEY_PREFIX = 'nodegfr_form_data_';
             const formUrl = document.querySelector('input[name="url"]').value;
-            const storageKey = STORAGE_KEY_PREFIX + btoa(formUrl).substring(0, 32); // Simple encoding for key
+            // IMPORTANT:
+            // Previously this used `btoa(formUrl).substring(0, 32)` which can collide across different forms
+            // (many Google Form URLs share the same prefix). Collisions caused restoring the wrong form state
+            // and could overwrite the hidden `url` field -> generated preview URLs point to a different form.
+            const storageKey = STORAGE_KEY_PREFIX + btoa(formUrl).replace(/[^a-zA-Z0-9]/g, '_');
 
             function saveFormState() {
               const formData = {};
@@ -2306,6 +2310,8 @@
               // Save standard inputs
               document.querySelectorAll('#probabilityForm input, #probabilityForm textarea, #probabilityForm select').forEach(input => {
                 if (!input.name) return;
+                // Never persist these; they are tied to the currently scraped form.
+                if (input.name === 'url' || input.name === 'pageCount' || input.name === 'pageHistoryStr') return;
                 // Handle array names slightly differently or just store all values
                 if (!formData[input.name]) {
                   formData[input.name] = [];
@@ -2369,6 +2375,8 @@
 
                 // 2. Restore Values
                 for (const [name, values] of Object.entries(data)) {
+                  // Never restore these; they must remain as rendered by the server for the current form.
+                  if (name === 'url' || name === 'pageCount' || name === 'pageHistoryStr') continue;
                   const inputs = document.querySelectorAll(`[name="${name}"]`);
                   inputs.forEach((input, index) => {
                     if (values[index] !== undefined) {
