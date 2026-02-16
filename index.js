@@ -188,24 +188,10 @@ app.get('/scrape', ensureAuthenticated, async (req, res) => {
 });
 
 
-app.get('/', async (req, res) => {
-    try {
-        const packages = await prisma.tokenPackage.findMany({
-            where: { active: true },
-            orderBy: { tokens: 'asc' }
-        });
-
-        res.render('home', {
-            formurlfail: req.query.formurlfail ?? null,
-            packages: packages
-        });
-    } catch (err) {
-        console.error('Error fetching packages:', err);
-        res.render('home', {
-            formurlfail: req.query.formurlfail ?? null,
-            packages: []
-        });
-    }
+app.get('/', (req, res) => {
+    res.render('home', {
+        formurlfail: req.query.formurlfail ?? null
+    });
 });
 
 // --- MIDTRANS & PAYMENT ROUTES ---

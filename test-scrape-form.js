@@ -1,7 +1,7 @@
 // Test scraping specific form
 const puppeteer = require('puppeteer');
 
-const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSffPaS5ijUqYEcGf3biznBL2Udwqe6aio9jRG16JTD3WMYLHQ/viewform';
+const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSctkwDOrFYNPzcOQRYmixTpyjDaXnKJW9lY85W5rlX-IJuDxw/viewform';
 
 (async () => {
     console.log('🔍 Testing Form Scraping...\n');
@@ -36,37 +36,26 @@ const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSffPaS5ijUqYEcGf3bizn
         const fields = rawData[1][1];
         if (!fields) return { error: 'No fields found' };
 
-        const allFields = [];
-
         fields.forEach((field, index) => {
-            const id = field[0];
-            const label = field[1];
             const typeId = field[3];
-            let entryId = null;
 
-            if (field[4] && field[4][0] && field[4][0][0]) {
-                entryId = field[4][0][0];
+            if (typeId === 8) {
+                const pageId = field[0];
+                const label = field[1];
+
+                type8Fields.push({
+                    index,
+                    pageId,
+                    label: label || 'Untitled Section',
+                    typeId
+                });
+
+                if (pageId) {
+                    pageHistory.push(pageId);
+                }
+                pageCount++;
             }
-
-            let options = [];
-            if (field[4] && field[4][0] && field[4][0][1]) {
-                options = field[4][0][1].map(opt => opt[0]);
-            }
-
-            allFields.push({
-                index,
-                id,
-                label: label || 'Untitled',
-                typeId,
-                entryId,
-                options
-            });
         });
-
-        return {
-            totalFields: fields.length,
-            allFields
-        };
 
         return {
             totalFields: fields.length,
@@ -82,16 +71,13 @@ const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSffPaS5ijUqYEcGf3bizn
     console.log('\n✅ pageHistoryStr:', result.pageHistoryStr || '0');
     console.log('📝 Page Count:', result.pageCount);
 
-    if (result.allFields && result.allFields.length > 0) {
-        console.log('\n📄 Fields Found:');
-        result.allFields.forEach(f => {
-            console.log(`  - [${f.index}] Type: ${f.typeId}, ID: ${f.id}, Label: "${f.label}", Entry ID: ${f.entryId}`);
-            if (f.options && f.options.length > 0) {
-                console.log('    Options:', JSON.stringify(f.options));
-            }
+    if (result.type8Fields && result.type8Fields.length > 0) {
+        console.log('\n📄 Section Headers Found:');
+        result.type8Fields.forEach(section => {
+            console.log(`  - [${section.index}] ID: ${section.pageId}, Label: "${section.label}"`);
         });
     } else {
-        console.log('\n⚠️  NO FIELDS FOUND!');
+        console.log('\n⚠️  NO TYPE 8 (Section Headers) FOUND - This is a SINGLE-PAGE form!');
     }
 
     await browser.close();
