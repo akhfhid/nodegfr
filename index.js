@@ -806,14 +806,24 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
             }
 
             // Add this page's entries to cumulative for next page's partialResponse
+            // Add this page's entries to cumulative for next page's partialResponse
             currentPageEntries.forEach(([key, value]) => {
-                if (key.startsWith('entry.') && !key.includes('_sentinel') && !key.includes('other_option_response')) {
-                    const entryId = parseInt(key.replace('entry.', ''));
+                // Modified filter: allow keys with 'other_option_response'
+                if (key.startsWith('entry.') && !key.includes('_sentinel')) {
+
+                    let entryId = null;
+                    if (key.includes('other_option_response')) {
+                        // Extract ID from entry.123.other_option_response
+                        entryId = parseInt(key.replace('entry.', '').replace('.other_option_response', ''));
+                    } else {
+                        entryId = parseInt(key.replace('entry.', ''));
+                    }
+
                     if (!isNaN(entryId)) {
                         // Check if this entry already exists in cumulative (update it)
                         const existingIdx = cumulativeEntries.findIndex(e => e && e[1] === entryId);
                         if (existingIdx >= 0) {
-                            // CRITICAL FIX 2: Append to existing values array (handle checkboxes/multi-select)
+                            // CRITICAL FIX 2: Append to existing values array (handle checkboxes/multi-select AND other options)
                             // cumulativeEntries element structure: [null, entryId, [values], 0]
                             cumulativeEntries[existingIdx][2].push(value);
                         } else {
@@ -1429,8 +1439,8 @@ function decodeToGoogleFormUrl(baseUrl, data, selections, iterationIndex = 0) {
             console.log(`[DECIDER] Sequential Selection (Checkbox) [${iterationIndex}]: ${selectedResult.option}`);
 
             if (hasOtherOption && selectedResult.isOtherOption) {
-                urlParams.append(name + '.other_option_response', selectedResult.option);
                 urlParams.append(name, '__other_option__');
+                urlParams.append(name + '.other_option_response', selectedResult.option);
             } else {
                 urlParams.append(name, selectedResult.option);
             }
@@ -1444,8 +1454,8 @@ function decodeToGoogleFormUrl(baseUrl, data, selections, iterationIndex = 0) {
             console.log(`[DECIDER] Sequential Selection [${iterationIndex}]: ${selectedResult.option} (isOther: ${selectedResult.isOtherOption})`);
 
             if (selectedResult.isOtherOption) {
-                urlParams.append(name + '.other_option_response', selectedResult.option);
                 urlParams.append(name, '__other_option__');
+                urlParams.append(name + '.other_option_response', selectedResult.option);
             } else {
                 urlParams.append(name, selectedResult.option);
             }
