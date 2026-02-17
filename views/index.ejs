@@ -1102,6 +1102,19 @@
                     <input type="hidden" name="pageCount" value="<%= pageCount %>">
                     <input type="hidden" name="pageHistoryStr"
                       value="<%= typeof pageHistoryStr !== 'undefined' ? pageHistoryStr : '0' %>">
+                    <input type="hidden" name="fbzx" value="<%= typeof fbzx !== 'undefined' ? fbzx : '' %>">
+                    <% 
+                      // Build page mapping from questions (entry name -> pageIndex)
+                      const pageMapping = {};
+                      if (typeof questions !== 'undefined') {
+                        questions.forEach(q => {
+                          if (q.name && q.name.startsWith('entry.') && typeof q.pageIndex !== 'undefined') {
+                            pageMapping[q.name] = q.pageIndex;
+                          }
+                        });
+                      }
+                    %>
+                    <input type="hidden" name="pageMapping" value="<%= JSON.stringify(pageMapping) %>">
 
                     <section class="glass-panel config-panel">
                       <div class="form-grid">
@@ -1233,7 +1246,7 @@
                                     <li class="option-input"
                                       style="flex-direction: column; align-items: stretch; background: transparent; border: none; padding: 0;">
                                       <textarea name="<%= q.name %>_answers[]" rows="3"
-                                        placeholder="Type each possible answer on a new line..." required></textarea>
+                                        placeholder="Type each possible answer on a new line..."></textarea>
                                       <input type="hidden" name="<%= q.name %>_chances[]" value="100">
                                       <div style="font-size: 0.8rem; color: var(--accent-success); margin-top: 8px;">
                                         <i class="fa-solid fa-check"></i> Equal random distribution enabled
@@ -1245,7 +1258,7 @@
                                     <ul class="answer-options">
                                       <li class="option-input">
                                         <textarea name="<%= q.name %>_answers[]" rows="2"
-                                          placeholder="Possible answer..." required style="flex:1"></textarea>
+                                          placeholder="Possible answer..." style="flex:1"></textarea>
                                         <div class="percent-input-wrapper">
                                           <input type="range" data-target-name="<%= q.name %>_chances[]" value="100"
                                             min="0" max="100">
@@ -1457,6 +1470,12 @@
                         <input type="number" name="respondCount" value="1" min="1"
                           style="text-align: center; font-weight: 700; height: 42px; font-size: 1rem; border-color: rgba(255,255,255,0.15); width: 100px;">
                       </div>
+                      <div class="input-group" style="flex: 0 0 auto;">
+                        <label
+                          style="margin-bottom: 6px; display: block; white-space: nowrap; font-size: 0.8rem;">Delay (s)</label>
+                        <input type="number" id="footerDelay" value="1" min="1" step="1"
+                          style="text-align: center; font-weight: 700; height: 42px; font-size: 1rem; border-color: rgba(255,255,255,0.15); width: 80px; background: var(--bg-input); color: var(--text-main); border-radius: 6px; border: 1px solid var(--input-border);">
+                      </div>
                       <button type="submit" class="submit-btn" style="flex: 1; height: 42px;">
                         <i class="fa-solid fa-rocket"></i> Save Probabilities & Generate Preview
                       </button>
@@ -1487,6 +1506,8 @@
                   <div id="hiddenUrlInputs"></div>
                   <input type="hidden" name="configId" id="configIdInput">
                   <input type="hidden" name="pageHistoryStr" id="pageHistoryStrInput">
+                  <input type="hidden" name="fbzx" id="fbzxInput">
+                  <input type="hidden" name="pageMapping" id="pageMappingInput">
 
                   <!-- MAIN ACTION -->
                   <button type="submit" class="submit-btn submit-btn-full"
@@ -1495,45 +1516,8 @@
                   </button>
 
                   <!-- ADVANCED SETTINGS (COLLAPSIBLE) -->
-                  <details
-                    style="background: rgba(0,0,0,0.1); border-radius: 8px; border: 1px solid var(--border-color);">
-                    <summary
-                      style="padding: 12px; cursor: pointer; font-size: 0.9rem; color: var(--text-muted); user-select: none;">
-                      <i class="fa-solid fa-sliders"></i> Advanced Settings (Speed & Concurrency)
-                    </summary>
-                    <div
-                      style="padding: 15px; border-top: 1px solid var(--border-color); display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                      <div class="input-group" style="margin-bottom: 0;">
-                        <label style="font-size: 0.8rem; color: var(--text-main); margin-bottom: 5px; display:block;">
-                          <i class="fa-solid fa-bolt"></i> Threads
-                        </label>
-                        <input type="number" name="concurrency" value="5" min="1" max="50"
-                          style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--input-border); background: var(--bg-input); color: var(--text-main);">
-                        <div style="font-size: 0.7rem; color: #666; margin-top: 4px;">Parallel tabs</div>
-                      </div>
-
-                      <div class="input-group" style="margin-bottom: 0;">
-                        <label style="font-size: 0.8rem; color: var(--text-main); margin-bottom: 5px; display:block;">
-                          <i class="fa-solid fa-clock"></i> Delay (ms)
-                        </label>
-                        <input type="number" name="delay" value="1000" min="100" step="100"
-                          style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--input-border); background: var(--bg-input); color: var(--text-main);">
-                        <div style="font-size: 0.7rem; color: #666; margin-top: 4px;">Wait per request</div>
-                      </div>
-
-                      <div class="input-group" style="margin-bottom: 0; grid-column: span 2;">
-                        <label style="font-size: 0.8rem; color: var(--text-main); margin-bottom: 5px; display:block;">
-                          <i class="fa-solid fa-file-lines"></i> Force Page Count (Manual)
-                        </label>
-                        <input type="number" name="manualPageCount" value="<%= pageCount %>" min="0" max="20"
-                          placeholder="Auto"
-                          style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--input-border); background: var(--bg-input); color: var(--text-main);">
-                        <div style="font-size: 0.7rem; color: #666; margin-top: 4px;">Detected: <%= pageCount %> (Index
-                            start
-                            0). Change to override.</div>
-                      </div>
-                    </div>
-                  </details>
+                  <input type="hidden" name="concurrency" id="hiddenConcurrency" value="20">
+                  <input type="hidden" name="delay" id="hiddenDelay" value="1000">
                 </form>
 
                 <ul id="urlListPreview"
@@ -1814,6 +1798,16 @@
             });
 
             // --- CHART MODAL ---
+
+            // --- CHART MODAL ---
+            // Build Question Map from Server Data
+            const questionMap = {};
+            <% if (typeof questions !== 'undefined') { %>
+                <% questions.forEach(function(q) { %>
+                    questionMap["<%= q.name %>"] = <%- JSON.stringify(q.question) %>;
+                <% }); %>
+            <% } %>
+
             let charts = [];
             function showModal(data) {
               const modal = document.getElementById('resultModal');
@@ -1831,6 +1825,27 @@
                   const phInput = document.getElementById('pageHistoryStrInput');
                   if (phInput) phInput.value = data.pageHistoryStr;
               }
+
+              if (data.fbzx) {
+                  const fbzxInput = document.getElementById('fbzxInput');
+                  if (fbzxInput) fbzxInput.value = data.fbzx;
+              }
+
+              if (data.pageMapping) {
+                  const pmInput = document.getElementById('pageMappingInput');
+                  if (pmInput) pmInput.value = typeof data.pageMapping === 'string' ? data.pageMapping : JSON.stringify(data.pageMapping);
+              }
+
+              // SYNC DELAY FROM FOOTER (Seconds -> ms)
+              const footerDelay = document.getElementById('footerDelay');
+              const hiddenDelay = document.getElementById('hiddenDelay');
+              if (footerDelay && hiddenDelay) {
+                  hiddenDelay.value = (parseInt(footerDelay.value) || 1) * 1000;
+              }
+
+              // Concurrency default 20 (already set in hidden input)
+              const hiddenConcurrency = document.getElementById('hiddenConcurrency');
+              if (hiddenConcurrency) hiddenConcurrency.value = 20;
 
               let currentUrls = data.urlsToSend;
               urlCount.textContent = currentUrls.length;
@@ -1880,7 +1895,7 @@
                   data: {
                     labels: rawLabels, // Use raw labels without % for bar chart axis
                     datasets: [{
-                      label: stat._questionText || key,
+                      label: questionMap[key] || stat._questionText || `Untitled Question (${key})`,
                       data: values,
                       backgroundColor: toonColors,
                       borderColor: 'rgba(0,0,0,0.1)',
@@ -1898,7 +1913,7 @@
                     },
                     plugins: {
                       legend: { display: false },
-                      title: { display: true, text: stat._questionText || key, font: { size: 14, weight: 'bold' }, padding: { bottom: 20 }, color: '#fff' }
+                      title: { display: true, text: questionMap[key] || stat._questionText || `Untitled Question (${key})`, font: { size: 14, weight: 'bold' }, padding: { bottom: 20 }, color: '#fff' }
                     }
                   }
                 });
@@ -2278,7 +2293,9 @@
                 delay: formData.get('delay'),
                 manualPageCount: formData.get('manualPageCount'),
                 pageHistoryStr: formData.get('pageHistoryStr'), // Pass explicit IDs
-                configId: formData.get('configId')
+                configId: formData.get('configId'),
+                fbzx: formData.get('fbzx'),
+                pageMapping: formData.get('pageMapping')
               };
 
               try {

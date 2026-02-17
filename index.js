@@ -526,7 +526,9 @@ app.post('/save-probabilities', ensureAuthenticated, express.json({ limit: '50mb
         }
 
         const pageHistoryStr = req.body.pageHistoryStr || null;
-        res.json({ urlsToSend, stats, configId: config.id, pageHistoryStr });
+        const fbzx = req.body.fbzx || null;
+        const pageMapping = req.body.pageMapping || null;
+        res.json({ urlsToSend, stats, configId: config.id, pageHistoryStr, fbzx, pageMapping });
     } catch (error) {
         console.error("Error in /save-probabilities:", error);
         res.status(500).json({ error: "Failed to process request" });
@@ -562,6 +564,14 @@ app.post('/execute-links', ensureAuthenticated, express.json({ limit: '50mb' }),
     const delay = parseInt(req.body.delay) || 1000;
     const manualPageCount = parseInt(req.body.manualPageCount) || 0;
     const pageHistoryStr = req.body.pageHistoryStr || null;
+    const fbzx = req.body.fbzx || null;
+    let pageMapping = null;
+    try {
+        pageMapping = req.body.pageMapping ? (typeof req.body.pageMapping === 'string' ? JSON.parse(req.body.pageMapping) : req.body.pageMapping) : null;
+    } catch (e) {
+        console.error('[EXECUTE] Failed to parse pageMapping:', e.message);
+    }
+
 
     // --- TOKEN CHECK START ---
     const cost = urlsToSend.length;
@@ -637,7 +647,7 @@ app.post('/execute-links', ensureAuthenticated, express.json({ limit: '50mb' }),
     };
 
     // 4. Start Background Worker (Fire and Forget)
-    runBackgroundJob(urlsToSend, concurrency, delay, manualPageCount, pageHistoryStr, job.id, req.user.id);
+    runBackgroundJob(urlsToSend, concurrency, delay, manualPageCount, pageHistoryStr, job.id, req.user.id, fbzx, pageMapping);
 
     // 5. Return immediately
     res.json({ message: 'Job started', total: urlsToSend.length, jobId: job.id, newBalance: updatedUser.tokenBalance });
@@ -653,8 +663,20 @@ app.post('/stop-job', ensureAuthenticated, (req, res) => {
     res.json({ message: 'Stop signal sent' });
 });
 
-async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, pageHistoryStr = null, jobId = null, userId = null) {
-    console.log(`[JOB] Starting background job: ${urls.length} items. Threads: ${concurrency}. Manual Pages: ${manualPageCount}. Page History: ${pageHistoryStr} UserID: ${userId}`);
+async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, pageHistoryStr = null, jobId = null, userId = null, fbzx = null, pageMapping = null) {
+    console.log(`[JOB] Starting background job: ${urls.length} items. Threads: ${concurrency}. Manual Pages: ${manualPageCount}. Page History: ${pageHistoryStr} UserID: ${userId} Has PageMapping: ${!!pageMapping}`);
+
+    // Determine total page count from pageMapping or pageHistoryStr
+    let totalPages = 1;
+    if (pageMapping && Object.keys(pageMapping).length > 0) {
+        totalPages = Math.max(...Object.values(pageMapping)) + 1;
+    } else if (pageHistoryStr && pageHistoryStr !== '0') {
+        totalPages = pageHistoryStr.split(',').length;
+    } else if (manualPageCount > 0) {
+        totalPages = manualPageCount + 1;
+    }
+    const isMultiPage = totalPages > 1 && pageMapping && Object.keys(pageMapping).length > 0;
+    console.log(`[JOB] Total pages: ${totalPages}, Multi-page mode: ${isMultiPage}`);
 
     if (jobId) {
         await prisma.job.update({
@@ -666,31 +688,162 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
     let currentIndex = 0;
     const activeWorkers = [];
 
+    // Helper: Make a single HTTP POST request
+    const makePostRequest = (hostname, path, formData, userAgent) => {
+        return new Promise((resolve) => {
+            const options = {
+                hostname: hostname,
+                path: path,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Length': Buffer.byteLength(formData),
+                    'User-Agent': userAgent
+                }
+            };
+
+            const req = https.request(options, (res) => {
+                let body = '';
+                res.on('data', (chunk) => body += chunk);
+                res.on('end', () => {
+                    resolve({ success: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, body, location: res.headers.location });
+                });
+            });
+
+            req.on('error', (e) => {
+                console.error(`[JOB ERROR] Request failed: ${e.message}`);
+                resolve({ success: false, status: 'ERROR' });
+            });
+
+            req.write(formData);
+            req.end();
+        });
+    };
+
+    // Multi-page sequential submission for a single URL
+    const submitMultiPage = async (targetUrl, userAgent) => {
+        const url = new URL(targetUrl);
+        const allParams = new URLSearchParams(url.search.substring(1));
+
+        // Group entries by page
+        const pageEntries = {}; // { pageIndex: [[key, value], ...] }
+        const otherParams = []; // Non-entry params
+
+        for (const [key, value] of allParams.entries()) {
+            if (key.startsWith('entry.') || key.includes('other_option_response')) {
+                // Determine which page this entry belongs to
+                const baseEntryName = key.split('.').slice(0, 2).join('.').split('_')[0]; // e.g., "entry.1152921546"
+                const entryPageIndex = pageMapping[baseEntryName] !== undefined ? pageMapping[baseEntryName] : 0;
+
+                if (!pageEntries[entryPageIndex]) pageEntries[entryPageIndex] = [];
+                pageEntries[entryPageIndex].push([key, value]);
+            }
+        }
+
+        // Build cumulative partialResponse as we go through pages
+        let cumulativeEntries = []; // [[null, entryId, ["value"], 0], ...]
+        let lastResult = null;
+
+        for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
+            const isLastPage = (pageIdx === totalPages - 1);
+            const pageParams = new URLSearchParams();
+
+            // Add this page's entries
+            const currentPageEntries = pageEntries[pageIdx] || [];
+            currentPageEntries.forEach(([key, value]) => {
+                pageParams.append(key, value);
+                // Also add _sentinel fields for multi-choice entries
+                if (key.startsWith('entry.') && !key.includes('_sentinel') && !key.includes('other_option_response')) {
+                    pageParams.append(key + '_sentinel', '');
+                }
+            });
+
+            // Add required params
+            pageParams.append('fvv', '1');
+
+            // Build partialResponse
+            const partialResponse = JSON.stringify([cumulativeEntries.length > 0 ? cumulativeEntries : null, null, fbzx || '']);
+            pageParams.append('partialResponse', partialResponse);
+
+            // Build pageHistory (sequential: 0, then 0,1, then 0,1,2...)
+            const pageHistoryArr = Array.from({ length: pageIdx + 1 }, (_, i) => i);
+            pageParams.append('pageHistory', pageHistoryArr.join(','));
+
+            // Add fbzx
+            if (fbzx) {
+                pageParams.append('fbzx', fbzx);
+            }
+
+            // Add submissionTimestamp and continue
+            if (isLastPage) {
+                pageParams.append('submissionTimestamp', Date.now().toString());
+                // No 'continue' on last page
+            } else {
+                pageParams.append('submissionTimestamp', '-1');
+                pageParams.append('continue', '1');
+            }
+
+            const formData = pageParams.toString();
+            console.log(`[MULTIPAGE] Page ${pageIdx}/${totalPages - 1}: ${currentPageEntries.length} entries, isLast=${isLastPage}`);
+
+            lastResult = await makePostRequest(url.hostname, url.pathname, formData, userAgent);
+
+            if (!lastResult.success) {
+                console.error(`[MULTIPAGE] Page ${pageIdx} failed with status ${lastResult.status}`);
+                return lastResult;
+            }
+
+            // Add this page's entries to cumulative for next page's partialResponse
+            currentPageEntries.forEach(([key, value]) => {
+                if (key.startsWith('entry.') && !key.includes('_sentinel') && !key.includes('other_option_response')) {
+                    const entryId = parseInt(key.replace('entry.', ''));
+                    if (!isNaN(entryId)) {
+                        // Check if this entry already exists in cumulative (update it)
+                        const existingIdx = cumulativeEntries.findIndex(e => e && e[1] === entryId);
+                        if (existingIdx >= 0) {
+                            cumulativeEntries[existingIdx] = [null, entryId, [value], 0];
+                        } else {
+                            cumulativeEntries.push([null, entryId, [value], 0]);
+                        }
+                    }
+                }
+            });
+
+            // Small delay between page submissions
+            if (!isLastPage) {
+                await new Promise(r => setTimeout(r, 100));
+            }
+        }
+
+        return lastResult;
+    };
+
+    // Single-page submission (original approach, simplified)
+    const submitSinglePage = async (targetUrl, userAgent) => {
+        const url = new URL(targetUrl);
+        const allParams = new URLSearchParams(url.search.substring(1));
+        const cleanParams = new URLSearchParams();
+
+        // Add FVV=1
+        cleanParams.append('fvv', '1');
+
+        // Add entry params
+        for (const [key, value] of allParams.entries()) {
+            if (key.startsWith('entry.') || key.includes('other_option_response') || key === 'pageHistory') {
+                cleanParams.append(key, value);
+            }
+        }
+
+        const formData = cleanParams.toString();
+        return makePostRequest(url.hostname, url.pathname, formData, userAgent);
+    };
+
     const worker = async (workerId) => {
         while (currentIndex < urls.length && globalJob.isRunning) {
             const index = currentIndex++;
             const u = urls[index];
 
             let finalUrl = u;
-
-            // PRIORITY: If explicit Page ID string exists, use it.
-            if (pageHistoryStr && pageHistoryStr !== "0") {
-                if (finalUrl.includes('pageHistory=')) {
-                    finalUrl = finalUrl.replace(/pageHistory=[^&]*/, `pageHistory=${pageHistoryStr}`);
-                } else {
-                    finalUrl += `&pageHistory=${pageHistoryStr}`;
-                }
-            }
-            // FALLBACK: If explicit ID missing but Manual Count > 0, generate sequence 0,1,2...
-            // (Note: This is risky for forms with specific IDs, but OK if scraping failed entirely)
-            else if (manualPageCount > 0) {
-                const pageHistory = Array.from({ length: manualPageCount + 1 }, (_, i) => i).join(',');
-                if (finalUrl.includes('pageHistory=')) {
-                    finalUrl = finalUrl.replace(/pageHistory=[^&]*/, `pageHistory=${pageHistory}`);
-                } else {
-                    finalUrl += `&pageHistory=${pageHistory}`;
-                }
-            }
 
             try {
                 // Select Random User-Agent
@@ -704,87 +857,22 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
                         console.log(`[JOB] Resolved to: ${finalUrl}`);
                     } catch (err) {
                         console.error(`[JOB ERROR] Failed to resolve forms.gle URL: ${err.message}`);
-                        // Continue anyway, maybe it works or will fail in the next step
                     }
                 }
 
                 // FIX URL for submission (viewform -> formResponse)
-                // Google Forms submissions usually go to /formResponse
                 if (finalUrl.includes('/viewform')) {
                     finalUrl = finalUrl.replace('/viewform', '/formResponse');
                 }
 
-                const result = await new Promise((resolve) => {
-                    // Parse URL to extract hostname, path, and form data
-                    const url = new URL(finalUrl);
-                    let formData = url.search.substring(1); // Remove leading '?'
-
-                    // CRITICAL FIX: Filter out non-entry parameters (like usp=header)
-                    const params = new URLSearchParams(formData);
-                    const cleanParams = new URLSearchParams();
-                    for (const [key, value] of params.entries()) {
-                        if (key.startsWith('entry.') || key.includes('other_option_response')) {
-                            cleanParams.append(key, value);
-                        }
-                    }
-                    formData = cleanParams.toString();
-
-                    // Remove trailing & if present
-                    formData = formData.replace(/&+$/, '');
-
-                    // DEBUG: Log exact request details
-                    console.log(`[POST DEBUG] Full URL: ${finalUrl}`);
-                    console.log(`[POST DEBUG] Form Data Length: ${formData.length}`);
-                    console.log(`[POST DEBUG] Form Data (last 100 chars): ...${formData.slice(-100)}`);
-
-                    const options = {
-                        hostname: url.hostname,
-                        path: url.pathname,
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                            'Content-Length': Buffer.byteLength(formData),
-                            'User-Agent': randomUA
-                        }
-                    };
-
-                    const req = https.request(options, (response) => {
-                        let responseBody = '';
-                        response.on('data', (chunk) => {
-                            responseBody += chunk;
-                        });
-                        response.on('end', () => {
-                            console.log(`[POST DEBUG] Response Status: ${response.statusCode}`);
-                            console.log(`[POST DEBUG] Response Body Length: ${responseBody.length}`);
-
-                            // Check for error indicators in response
-                            if (responseBody.includes('entry.') && responseBody.includes('required')) {
-                                console.log(`[POST ERROR] ❌ Google Forms validation error detected!`);
-                                console.log(`[POST ERROR] Response preview: ${responseBody.substring(0, 500)}`);
-                            } else if (responseBody.length < 10000) {
-                                console.log(`[POST WARNING] ⚠️ Unusually short response - possible error`);
-                                console.log(`[POST WARNING] Response: ${responseBody.substring(0, 300)}`);
-                            } else {
-                                console.log(`[POST SUCCESS] ✅ Response looks normal`);
-                            }
-
-                            resolve({
-                                status: response.statusCode,
-                                location: response.headers.location || null,
-                                body: responseBody
-                            });
-                        });
-                    });
-
-                    req.on('error', (e) => {
-                        console.error(`[JOB ERROR] Request failed: ${e.message}`);
-                        resolve({ status: 'ERROR', location: null });
-                    });
-
-                    // Write form data to request body
-                    req.write(formData);
-                    req.end();
-                });
+                let result;
+                if (isMultiPage) {
+                    // Multi-page: sequential per-page POST
+                    result = await submitMultiPage(finalUrl, randomUA);
+                } else {
+                    // Single-page: one POST with all entries
+                    result = await submitSinglePage(finalUrl, randomUA);
+                }
 
                 const { status, location } = result;
 
@@ -1370,6 +1458,13 @@ function decodeToGoogleFormUrl(baseUrl, data, selections = []) {
         console.log(`[URL BUILDER] Single-page form detected - skipping pageHistory parameter`);
     }
 
+    // Add fbzx if present (CRITICAL for multi-page)
+    const fbzx = data.find(e => e.name === 'fbzx')?.value;
+    if (fbzx) {
+        urlParams.append('fbzx', fbzx);
+        urlParams.append('continue', '1');
+    }
+
     console.log(`[URL BUILDER] Final Page Count: ${pages} -> pageHistory: ${pageHistory}`);
     console.log(`[URL BUILDER] Full Params: ${urlParams.toString()}`);
 
@@ -1541,6 +1636,7 @@ async function scrape(url) {
             const questions = [];
             const typeCounts = {};
             let pageCount = 0;
+            let currentPageIndex = 0; // Track which page we're on (0-indexed)
             const pageHistory = [0];
 
             const fields = rawData[1][1];
@@ -1574,10 +1670,12 @@ async function scrape(url) {
                         question: field[1] || "Untitled Section",
                         type: 'SectionHeader',
                         options: [],
-                        hasOtherOptions: false
+                        hasOtherOptions: false,
+                        pageIndex: currentPageIndex
                     });
 
                     pageCount++;
+                    currentPageIndex++; // Move to next page after section break
                     return; // Done with Type 8, next field
                 }
 
@@ -1641,13 +1739,18 @@ async function scrape(url) {
                             type: questionType,
                             options: options,
                             linearScaleLabels: linearScaleLabels, // Pass labels
-                            hasOtherOptions: hasOtherOptions
+                            hasOtherOptions: hasOtherOptions,
+                            pageIndex: currentPageIndex
                         });
                     }
                 }
             });
 
-            return { questions, typeCounts, pageCount, pageHistoryStr: pageHistory.join(',') };
+            // Extract FBZX from hidden input
+            const fbzxInput = document.querySelector('input[name="fbzx"]');
+            const fbzx = fbzxInput ? fbzxInput.value : null;
+
+            return { questions, typeCounts, pageCount, pageHistoryStr: pageHistory.join(','), fbzx };
         });
 
         if (formData.error) {
@@ -1658,13 +1761,15 @@ async function scrape(url) {
 
         const validData = formData.questions.filter(q => q);
         console.log(`[SCRAPER] Found ${validData.length} valid questions.`);
+        if (formData.fbzx) console.log(`[SCRAPER] Found fbzx token: ${formData.fbzx}`);
 
         // Include formTitle in the return object
         return {
             questions: validData,
             pageCount: formData.pageCount,
             pageHistoryStr: formData.pageHistoryStr,
-            title: formTitle
+            title: formTitle,
+            fbzx: formData.fbzx
         };
     } catch (err) {
         console.error(`[SCRAPER] Error: ${err.message}`);

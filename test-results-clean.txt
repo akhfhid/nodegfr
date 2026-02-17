@@ -1,0 +1,5 @@
+TEST1_T1_RAW_ONLY=200_confirmed=false_bodyLen=55613
+TEST2_T2_ENTRIES_PH_ENC=400_confirmed=false_bodyLen=55329
+TEST3_T3_FVV_ENTRIES_PH=400_confirmed=false_bodyLen=55404
+TEST4_T4_FULL_DUMMYFBZX=200_confirmed=false_bodyLen=74137
+TEST5_T5_PH_UNENCODED=400_confirmed=false_bodyLen=55370

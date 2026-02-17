@@ -1,0 +1,5 @@
+T1_RAW_ONLY: status=200 bodyLen=55613 confirmed=false
+T2_ENTRIES_PAGEHISTORY: status=400 bodyLen=55291 confirmed=false
+T3_FVV_ENTRIES_PH: status=400 bodyLen=55329 confirmed=false
+T4_FULL_DUMMY_FBZX: status=200 bodyLen=74052 confirmed=false
+T5_PH_UNENCODED: status=400 bodyLen=55334 confirmed=false

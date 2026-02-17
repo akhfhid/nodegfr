@@ -1659,7 +1659,6 @@
                             }
                             attempts++;
                             try {
-                                // Check status via backend (which checks Midtrans)
                                 const checkRes = await fetch(`/api/transaction/check/${orderId}`);
                                 const checkData = await checkRes.json();
 

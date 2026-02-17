@@ -1,0 +1,26 @@
+[
+  {
+    "test": "T1_FINAL_PAGE_WITH_PARTIAL",
+    "status": 200,
+    "bodyLen": 54597,
+    "confirmed": false
+  },
+  {
+    "test": "T2_ALL_ENTRIES_PARTIAL_EMPTY",
+    "status": 200,
+    "bodyLen": 54709,
+    "confirmed": false
+  },
+  {
+    "test": "T3_ALL_ENTRIES_NO_PARTIAL",
+    "status": 200,
+    "bodyLen": 54628,
+    "confirmed": false
+  },
+  {
+    "test": "T4_EXACT_BROWSER_FINAL",
+    "status": 200,
+    "bodyLen": 54636,
+    "confirmed": false
+  }
+]

@@ -1,0 +1,30 @@
+Form Title: AFFAN TEST 2222222
+
+--- ALL HIDDEN INPUTS ---
+entry.1152921546: 
+entry.1515637797_sentinel: 
+fvv: 1
+partialResponse: [null,null,"4749095682243775568"]
+pageHistory: 0
+fbzx: 4749095682243775568
+submissionTimestamp: -1
+
+--- PAGE 0 (ID: 0) ---
+[FIELD] Type: 0 | Entry ID: 1152921546 | Label: Test newline sebagai option jawaban
+[FIELD] Type: 2 | Entry ID: 1515637797 | Label: null
+  - Option: Opsi 1
+
+--- PAGE 1 (ID: 63316520) ---
+[SECTION] Label: Test Halaman 2
+[FIELD] Type: 2 | Entry ID: 577699138 | Label: test
+  - Option: Opsi 1
+[FIELD] Type: 2 | Entry ID: 476679252 | Label: null
+  - Option: Opsi 1
+
+--- PAGE 2 (ID: 582135968) ---
+[SECTION] Label: Test Halaman 3
+[FIELD] Type: 1 | Entry ID: 948531731 | Label: test
+[FIELD] Type: 2 | Entry ID: 718073519 | Label: null
+  - Option: Opsi 1
+[FIELD] Type: 2 | Entry ID: 1323593743 | Label: null
+  - Option: Opsi 1

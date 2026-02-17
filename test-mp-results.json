@@ -1,0 +1,32 @@
+[
+  {
+    "test": "T1_RAW_ONLY",
+    "status": 200,
+    "bodyLen": 55613,
+    "confirmed": false
+  },
+  {
+    "test": "T2_ENTRIES_PH_ENC",
+    "status": 400,
+    "bodyLen": 55329,
+    "confirmed": false
+  },
+  {
+    "test": "T3_FVV_ENTRIES_PH",
+    "status": 400,
+    "bodyLen": 55404,
+    "confirmed": false
+  },
+  {
+    "test": "T4_FULL_DUMMYFBZX",
+    "status": 200,
+    "bodyLen": 74137,
+    "confirmed": false
+  },
+  {
+    "test": "T5_PH_UNENCODED",
+    "status": 400,
+    "bodyLen": 55370,
+    "confirmed": false
+  }
+]
