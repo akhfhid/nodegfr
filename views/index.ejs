@@ -98,6 +98,91 @@
       border-radius: 50%;
       filter: blur(80px);
       opacity: 0.5;
+    }
+
+    /* THEME SUPPORT FOR SELECT OPTIONS */
+    #footerDelay option {
+      background-color: var(--bg-deep);
+      color: var(--text-main);
+    }
+
+    /* CUSTOM DROPDOWN STYLES */
+    .custom-dropdown {
+      position: relative;
+      width: 140px;
+      user-select: none;
+    }
+
+    .custom-dropdown-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      height: 42px;
+      background: var(--bg-input);
+      border: 1px solid var(--input-border);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-main);
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    .custom-dropdown-trigger:hover {
+        background: var(--bg-card-hover);
+        border-color: rgba(255,255,255,0.2);
+    }
+    .custom-dropdown-trigger span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .custom-dropdown-options {
+      position: absolute;
+      bottom: 115%;
+      left: 0;
+      width: 100%;
+      background: var(--header-bg); /* Glass */
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--input-border);
+      border-radius: 6px;
+      overflow: hidden;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(10px) scale(0.95);
+      transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+      z-index: 1000;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .custom-dropdown.open .custom-dropdown-options {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0) scale(1);
+    }
+
+    .custom-option {
+      padding: 10px;
+      font-size: 0.9rem;
+      color: var(--text-main);
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-color);
+      transition: background 0.2s;
+    }
+    .custom-option:last-child {
+        border-bottom: none;
+    }
+    .custom-option:hover {
+      background: var(--bg-card-hover);
+      color: var(--primary);
+    }
+    .custom-option.selected {
+      background: var(--bg-card-hover);
+      color: var(--primary);
+      font-weight: bold;
+    }
       animation: floatOrb 20s infinite ease-in-out;
     }
 
@@ -1472,9 +1557,24 @@
                       </div>
                       <div class="input-group" style="flex: 0 0 auto;">
                         <label
-                          style="margin-bottom: 6px; display: block; white-space: nowrap; font-size: 0.8rem;">Delay (s)</label>
-                        <input type="number" id="footerDelay" value="1" min="1" step="1"
-                          style="text-align: center; font-weight: 700; height: 42px; font-size: 1rem; border-color: rgba(255,255,255,0.15); width: 80px; background: var(--bg-input); color: var(--text-main); border-radius: 6px; border: 1px solid var(--input-border);">
+                          style="margin-bottom: 6px; display: block; white-space: nowrap; font-size: 0.8rem;">Delay</label>
+                        <div class="custom-dropdown" id="delayDropdown">
+                          <input type="hidden" id="footerDelayValue" value="0">
+                          <div class="custom-dropdown-trigger">
+                            <span>Turbo</span>
+                            <i class="fa-solid fa-chevron-up" style="font-size: 0.8rem; color: var(--text-muted);"></i>
+                          </div>
+                          <div class="custom-dropdown-options">
+                            <div class="custom-option selected" data-value="0">Turbo</div>
+                            <div class="custom-option" data-value="3">3 Detik</div>
+                            <div class="custom-option" data-value="15">15 Detik</div>
+                            <div class="custom-option" data-value="30">30 Detik</div>
+                            <div class="custom-option" data-value="60">1 Menit</div>
+                            <div class="custom-option" data-value="300">5 Menit</div>
+                            <div class="custom-option" data-value="900">15 Menit</div>
+                            <div class="custom-option" data-value="1800">30 Menit</div>
+                          </div>
+                        </div>
                       </div>
                       <button type="submit" class="submit-btn" style="flex: 1; height: 42px;">
                         <i class="fa-solid fa-rocket"></i> Save Probabilities & Generate Preview
@@ -1836,16 +1936,24 @@
                   if (pmInput) pmInput.value = typeof data.pageMapping === 'string' ? data.pageMapping : JSON.stringify(data.pageMapping);
               }
 
-              // SYNC DELAY FROM FOOTER (Seconds -> ms)
-              const footerDelay = document.getElementById('footerDelay');
+              // SYNC DELAY & THREADS FROM FOOTER
+              const footerDelayValue = document.getElementById('footerDelayValue');
               const hiddenDelay = document.getElementById('hiddenDelay');
-              if (footerDelay && hiddenDelay) {
-                  hiddenDelay.value = (parseInt(footerDelay.value) || 1) * 1000;
-              }
-
-              // Concurrency default 20 (already set in hidden input)
               const hiddenConcurrency = document.getElementById('hiddenConcurrency');
-              if (hiddenConcurrency) hiddenConcurrency.value = 20;
+              
+              if (footerDelayValue && hiddenDelay && hiddenConcurrency) {
+                  const delaySec = parseInt(footerDelayValue.value) || 0;
+                  
+                  if (delaySec > 0) {
+                      // Delayed Mode: Serial execution (1 thread) + Delay
+                      hiddenConcurrency.value = 1;
+                      hiddenDelay.value = delaySec * 1000;
+                  } else {
+                      // Turbo Mode: Max threads + minimal/default delay
+                      hiddenConcurrency.value = 20;
+                      hiddenDelay.value = 1000; // Default small delay for safety
+                  }
+              }
 
               let currentUrls = data.urlsToSend;
               urlCount.textContent = currentUrls.length;
@@ -2187,7 +2295,41 @@
               updateChanceTotals();
             }
 
-            // --- SMART FILL LOGIC ---
+
+            // Custom Dropdown Logic
+            const dropdown = document.getElementById('delayDropdown');
+            if (dropdown) {
+                const trigger = dropdown.querySelector('.custom-dropdown-trigger');
+                const hiddenInput = document.getElementById('footerDelayValue');
+                const triggerText = trigger.querySelector('span');
+
+                trigger.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    dropdown.classList.toggle('open');
+                });
+
+                dropdown.querySelectorAll('.custom-option').forEach(opt => {
+                    opt.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const val = opt.getAttribute('data-value');
+                        const text = opt.textContent;
+
+                        hiddenInput.value = val;
+                        triggerText.textContent = text;
+
+                        dropdown.querySelectorAll('.custom-option').forEach(o => o.classList.remove('selected'));
+                        opt.classList.add('selected');
+
+                        dropdown.classList.remove('open');
+                    });
+                });
+
+                document.addEventListener('click', () => {
+                   dropdown.classList.remove('open');
+                });
+            }
+
+            // --- MAIN EXECUTION LOGIC ---
             function smartFill(mode) {
               if (!confirm(`Apply "${mode.toUpperCase()}" template to all questions? This will overwrite current sliders.`)) return;
 
