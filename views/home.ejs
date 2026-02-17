@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <!-- Midtrans Snap -->
     <script type="text/javascript" src="https://app.midtrans.com/snap/snap.js"
@@ -1119,15 +1119,13 @@
                         </main>
 
                         <section class="features-grid" id="features">
-                            <!-- Feature 1 -->
+                            
                             <div class="glass-panel feature-card">
                                 <div class="icon-box"><i class="fas fa-bolt"></i></div>
                                 <h3>Super Fast</h3>
                                 <p>Cocok untuk mahasiswa yang dikejar deadline. Selesaikan ribuan responden dalam
                                     hitungan detik.</p>
                             </div>
-
-                            <!-- Feature 2 -->
                             <div class="glass-panel feature-card">
                                 <div class="icon-box"><i class="fas fa-shield-alt"></i></div>
                                 <h3>Secure</h3>
@@ -1135,7 +1133,6 @@
                                     Anda.</p>
                             </div>
 
-                            <!-- Feature 3 -->
                             <div class="glass-panel feature-card">
                                 <div class="icon-box"><i class="fas fa-magic"></i></div>
                                 <h3>Flexible</h3>
@@ -1249,13 +1246,32 @@
                                 </div>
                             </div>
                         </section>
+
                         <footer>
                             <div class="footer-nav">
                                 <a href="#pricelist">Pricelist</a>
                                 <a href="/">Home</a>
-                                <a href="#">FAQ</a>
+                                <a href="#faq">FAQ</a>
                             </div>
-                            <p class="copyright">© 2026 AUTOFILL COMMAND CENTER - ALL RIGHTS RESERVED</p>
+                            <div class="social-links" style="margin: 20px 0; display: flex; justify-content: center; gap: 20px;">
+                                <a href="https://instagram.com/autofill.id" target="_blank" title="Instagram" style="color: var(--text-muted); font-size: 1.2rem; transition: var(--transition);">
+                                    <i class="fa-brands fa-instagram"></i>
+                                </a>
+                                <a href="https://x.com/autofillsite" target="_blank" title="Twitter / X" style="color: var(--text-muted); font-size: 1.2rem; transition: var(--transition);">
+                                    <i class="fa-brands fa-x-twitter"></i>
+                                </a>
+                                <a href="https://wa.me/6285190000758" target="_blank" title="WhatsApp" style="color: var(--text-muted); font-size: 1.2rem; transition: var(--transition);">
+                                    <i class="fa-brands fa-whatsapp"></i>
+                                </a>
+                            </div>
+                            <!-- Add hover effect via inline style or class -->
+                            <style>
+                                .social-links a:hover {
+                                    color: var(--primary) !important;
+                                    transform: translateY(-3px);
+                                }
+                            </style>
+                            <p class="copyright">© 2026 AUTOFILL - ALL RIGHTS RESERVED</p>
                         </footer>
         </div>
 
@@ -1373,9 +1389,8 @@
                     if (status) status.innerText = 'Tidak bisa mengggunakan link edit!';
                     return;
                 }
-                if
-                    (!v.includes('docs.google.com')) {
-                    if (status) status.innerText = 'Link tidak valid';
+                if (!v.includes('docs.google.com') && !v.includes('forms.gle')) {
+                    if (status) status.innerText = 'Link tidak valid (harus docs.google.com atau forms.gle)';
                     return;
                 } const overlay = document.getElementById('loading-overlay'); const
                     content = document.getElementById('main-content'); if (overlay)
@@ -1468,13 +1483,9 @@
 
                 if (pkg) {
                     total = pkg.price;
-                    // inferred rate
                     const rate = Math.round(pkg.price / pkg.tokens);
                     rateDisplay = `Harga Paket: Rp ${pkg.price.toLocaleString('id-ID')}`;
                 } else {
-                    // Fallback rate if manual input doesn't match package
-                    // Using 1 for now as per original code context, or ideally 500?
-                    // Let's use 500 as base rate if no package matches
                     let rate = 400;
                     total = val * rate;
                     rateDisplay = `Harga: Rp ${rate} / resp`;
@@ -1565,8 +1576,6 @@
                 const answer = item.querySelector('.faq-answer');
                 const isActive = item.classList.contains('active');
 
-                // Close all other items (Optional - user might want multiple open)
-                // Let's keep it simple: multiple can be open or single? Single is usually cleaner.
                 document.querySelectorAll('.faq-item').forEach(otherItem => {
                    if (otherItem !== item) {
                        otherItem.classList.remove('active');

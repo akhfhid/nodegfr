@@ -525,7 +525,8 @@ app.post('/save-probabilities', ensureAuthenticated, express.json({ limit: '50mb
             urlsToSend.push(newForm);
         }
 
-        res.json({ urlsToSend, stats, configId: config.id });
+        const pageHistoryStr = req.body.pageHistoryStr || null;
+        res.json({ urlsToSend, stats, configId: config.id, pageHistoryStr });
     } catch (error) {
         console.error("Error in /save-probabilities:", error);
         res.status(500).json({ error: "Failed to process request" });
@@ -636,7 +637,7 @@ app.post('/execute-links', ensureAuthenticated, express.json({ limit: '50mb' }),
     };
 
     // 4. Start Background Worker (Fire and Forget)
-    runBackgroundJob(urlsToSend, concurrency, delay, manualPageCount, pageHistoryStr, job.id);
+    runBackgroundJob(urlsToSend, concurrency, delay, manualPageCount, pageHistoryStr, job.id, req.user.id);
 
     // 5. Return immediately
     res.json({ message: 'Job started', total: urlsToSend.length, jobId: job.id, newBalance: updatedUser.tokenBalance });
@@ -652,8 +653,8 @@ app.post('/stop-job', ensureAuthenticated, (req, res) => {
     res.json({ message: 'Stop signal sent' });
 });
 
-async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, pageHistoryStr = null, jobId = null) {
-    console.log(`[JOB] Starting background job: ${urls.length} items. Threads: ${concurrency}. Manual Pages: ${manualPageCount}. Page History: ${pageHistoryStr}`);
+async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, pageHistoryStr = null, jobId = null, userId = null) {
+    console.log(`[JOB] Starting background job: ${urls.length} items. Threads: ${concurrency}. Manual Pages: ${manualPageCount}. Page History: ${pageHistoryStr} UserID: ${userId}`);
 
     if (jobId) {
         await prisma.job.update({
@@ -694,6 +695,24 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
             try {
                 // Select Random User-Agent
                 const randomUA = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+
+                // RESOLVE REDIRECTS (Support forms.gle)
+                if (finalUrl.includes('forms.gle')) {
+                    try {
+                        console.log(`[JOB] Resolving forms.gle URL: ${finalUrl}`);
+                        finalUrl = await resolveRedirects(finalUrl);
+                        console.log(`[JOB] Resolved to: ${finalUrl}`);
+                    } catch (err) {
+                        console.error(`[JOB ERROR] Failed to resolve forms.gle URL: ${err.message}`);
+                        // Continue anyway, maybe it works or will fail in the next step
+                    }
+                }
+
+                // FIX URL for submission (viewform -> formResponse)
+                // Google Forms submissions usually go to /formResponse
+                if (finalUrl.includes('/viewform')) {
+                    finalUrl = finalUrl.replace('/viewform', '/formResponse');
+                }
 
                 const result = await new Promise((resolve) => {
                     // Parse URL to extract hostname, path, and form data
@@ -836,6 +855,32 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
                 completedAt: new Date()
             }
         });
+    }
+
+    // --- TOKEN REFUND LOGIC ---
+    if (globalJob.fail > 0 && userId) {
+        console.log(`[JOB REFUND] Detected ${globalJob.fail} failures. Refunding ${globalJob.fail} tokens to user ${userId}...`);
+        try {
+            await prisma.$transaction([
+                prisma.user.update({
+                    where: { id: userId },
+                    data: { tokenBalance: { increment: globalJob.fail } }
+                }),
+                prisma.transaction.create({
+                    data: {
+                        id: `REFUND-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                        userId: userId,
+                        package: 'REFUND', // Special package type for refunds
+                        amount: 0,
+                        tokens: globalJob.fail,
+                        status: 'SUCCESS'
+                    }
+                })
+            ]);
+            console.log(`[JOB REFUND] Refund successful!`);
+        } catch (err) {
+            console.error(`[JOB REFUND ERROR] Failed to refund tokens:`, err);
+        }
     }
 }
 
@@ -1460,7 +1505,6 @@ async function scrape(url) {
         // OPTIMIZATION: Wait for DOM only, not full network idle
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-        // DEBUG: Listen to browser console
         page.on('console', msg => console.log('PAGE LOG:', msg.text()));
 
         const pageTitle = await page.title();
@@ -1471,7 +1515,6 @@ async function scrape(url) {
             await page.close();
             return { error: 'Login required', questions: [] };
         }
-        // Extract clean form title
         const formTitle = await page.evaluate(() => {
             const heading = document.querySelector('div[role="heading"][aria-level="1"]') || document.querySelector('div[role="heading"]') || document.querySelector('.F9yp7e');
             return heading ? heading.innerText.trim() : document.title.replace(' - Google Forms', '');
@@ -1628,4 +1671,19 @@ async function scrape(url) {
         if (page) await page.close();
         return { error: err.message, questions: [] };
     }
+}
+
+
+// Helper to follow redirects (for forms.gle)
+async function resolveRedirects(url) {
+    return new Promise((resolve, reject) => {
+        const req = https.get(url, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                resolve(resolveRedirects(res.headers.location));
+            } else {
+                resolve(url);
+            }
+        });
+        req.on('error', (err) => reject(err));
+    });
 }
