@@ -83,48 +83,17 @@
             z-index: -1;
             overflow: hidden;
             background: var(--bg-deep);
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
             transition: background 0.5s ease;
         }
 
-        .orb {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(30px);
-            opacity: 0.35;
-            animation: floatOrb 20s infinite ease-in-out;
-            will-change: transform;
-            transform: translateZ(0);
-            transition: background 0.5s ease, opacity 0.5s ease;
-        }
-
-        .orb-1 {
-            width: 400px;
-            height: 400px;
-            background: var(--primary);
-            top: -100px;
-            left: -100px;
-            animation-delay: 0s;
-        }
-
-        .orb-2 {
-            width: 500px;
-            height: 500px;
-            background: var(--secondary);
-            bottom: -150px;
-            right: -150px;
-            animation-delay: -5s;
-            animation-direction: alternate-reverse;
-        }
-
-        .orb-3 {
-            width: 300px;
-            height: 300px;
-            background: #d946ef;
-            top: 40%;
-            left: 50%;
-            transform: translate(-50%, -50%) translateZ(0);
-            opacity: 0.2;
-            animation: pulseOrb 15s infinite ease-in-out;
+        body.light-theme .ambient-bg {
+            background-image: 
+                linear-gradient(rgba(0, 0, 0, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 0, 0, 0.08) 1px, transparent 1px);
         }
 
         .noise-overlay {
@@ -137,34 +106,6 @@
             opacity: 0.05;
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
             pointer-events: none;
-        }
-
-        @keyframes floatOrb {
-            0% {
-                transform: translate(0, 0) scale(1);
-            }
-
-            50% {
-                transform: translate(30px, 50px) scale(1.1);
-            }
-
-            100% {
-                transform: translate(0, 0) scale(1);
-            }
-        }
-
-        @keyframes pulseOrb {
-
-            0%,
-            100% {
-                transform: translate(-50%, -50%) scale(1);
-                opacity: 0.3;
-            }
-
-            50% {
-                transform: translate(-50%, -50%) scale(1.2);
-                opacity: 0.5;
-            }
         }
 
         .container {
@@ -212,29 +153,49 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            font-weight: 700;
-            font-size: 1.5rem;
-            letter-spacing: -1px;
-            color: var(--text-main);
             text-decoration: none;
             transition: var(--transition);
         }
 
-        .logo i {
-            color: var(--secondary);
-            filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.4));
+        .logo img {
+            height: 40px;
+            width: auto;
+            transition: opacity 0.3s ease;
+            filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.3));
+        }
+
+        .logo-img-light {
+            display: none;
+        }
+
+        body.light-theme .logo-img-dark {
+            display: none;
+        }
+
+        body.light-theme .logo-img-light {
+            display: block;
+            filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.3));
         }
 
         .logo span {
+            font-weight: 700;
+            font-size: 1.5rem;
+            letter-spacing: -1px;
             background: linear-gradient(to right, var(--text-main), #6366f1);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
+            -webkit-text-stroke: 0.5px rgba(255, 255, 255, 0.2);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        body.light-theme .logo span {
+            -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.2);
         }
 
         .logo:hover {
             transform: scale(1.05);
-            text-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+            filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.3));
         }
 
         nav {
@@ -325,22 +286,25 @@
             border: 1px solid var(--border-color);
             transition: .4s;
             border-radius: 34px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 8px;
         }
 
         .slider:before {
             position: absolute;
-            content: "";
-            height: 22px;
-            width: 22px;
-            left: 4px;
-            bottom: 3px;
+            content: "\f186"; /* Moon Icon */
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            height: 26px;
+            width: 26px;
+            left: 2px;
+            bottom: 1px;
             background-color: var(--primary);
+            color: white;
             transition: .4s;
             border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
             z-index: 2;
         }
 
@@ -349,28 +313,46 @@
         }
 
         input:checked+.slider:before {
-            transform: translateX(30px);
-        }
-
-        .icon-dark,
-        .icon-light {
-            color: var(--text-muted);
-            font-size: 14px;
-            z-index: 1;
-        }
-
-        .icon-light {
-            color: #f59e0b;
-        }
-
-        input:checked+.slider .icon-dark {
-            opacity: 0.5;
+            transform: translateX(30px) rotate(360deg);
+            content: "\f185"; /* Sun Icon */
+            background-color: #f59e0b; /* Sun Color */
+            color: white;
         }
 
         .hero {
             text-align: center;
             padding: 80px 0 100px;
             animation: fadeInUp 1s ease-out;
+            position: relative;
+            margin-bottom: 60px;
+        }
+
+        /* Full-width smooth background for Hero (Masks the grid) */
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -200px; /* Extend up behind header */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100vw;
+            height: 140%; /* Extend down */
+            background: var(--bg-deep);
+            background-image: radial-gradient(circle at center, rgba(139, 92, 246, 0.15) 0%, transparent 60%);
+            z-index: -1;
+            mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+            pointer-events: none;
+        }
+
+        body.light-theme .hero::before {
+            background: var(--bg-deep);
+            background-image: radial-gradient(circle at center, rgba(139, 92, 246, 0.1) 0%, transparent 60%);
+        }
+
+        body.light-theme .hero {
+            background: none;
+            border: none;
+            box-shadow: none;
         }
 
         .hero h1 {
@@ -632,6 +614,73 @@
 
         .package-card.active .btn-select:hover {
             background: #7c3aed;
+        }
+
+
+
+        /* --- FAQ SECTION (Accordion) --- */
+        .faq-container {
+            max-width: 800px;
+            margin: 0 auto 100px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .faq-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        .faq-item:hover {
+            border-color: var(--primary);
+        }
+
+        .faq-question {
+            width: 100%;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: none;
+            border: none;
+            color: var(--text-main);
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .faq-question:hover {
+            color: var(--secondary);
+        }
+
+        .faq-question i {
+            color: var(--text-muted);
+            transition: transform 0.3s;
+        }
+
+        .faq-item.active .faq-question i {
+            transform: rotate(180deg);
+            color: var(--primary);
+        }
+
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .answer-content {
+            padding: 0 24px 24px;
+            color: var(--text-muted);
+            line-height: 1.6;
+            font-size: 0.95rem;
         }
 
         footer {
@@ -973,9 +1022,6 @@
 <body>
 
     <div class="ambient-bg">
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-        <div class="orb orb-3"></div>
         <div class="noise-overlay"></div>
     </div>
 
@@ -988,16 +1034,14 @@
     <header>
         <div class="header-inner" id="main-header">
             <a href="/" class="logo">
-                <i class="fa-solid fa-bolt"></i>
+                <img src="/images/submark-white.png" alt="Autofill Logo" class="logo-img-dark">
+                <img src="/images/submark-black.png" alt="Autofill Logo" class="logo-img-light">
                 <span>AUTOFILL</span>
             </a>
             <nav>
                 <label class="theme-switch" title="Switch Theme">
                     <input type="checkbox" id="theme-checkbox" onchange="toggleTheme(this)">
-                    <span class="slider round">
-                        <i class="fa-solid fa-moon icon-dark"></i>
-                        <i class="fa-solid fa-sun icon-light"></i>
-                    </span>
+                    <span class="slider round"></span>
                 </label>
                 <a href="#features">Features</a>
                 <a href="#pricelist">Pricelist</a>
@@ -1144,6 +1188,67 @@
                             </div>
                         </section>
 
+
+                        <section class="faq-section" id="faq">
+                            <div class="section-header">
+                                <h2>FAQ</h2>
+                                <p>Pertanyaan yang sering diajukan</p>
+                            </div>
+
+                            <div class="faq-container">
+                                <div class="faq-item">
+                                    <button class="faq-question" onclick="toggleFaq(this)">
+                                        <span>Apakah data aman?</span>
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </button>
+                                    <div class="faq-answer">
+                                        <div class="answer-content">
+                                            Ya, kami tidak menyimpan data pribadi responden Anda. Kami hanya memproses
+                                            link untuk autofill.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="faq-item">
+                                    <button class="faq-question" onclick="toggleFaq(this)">
+                                        <span>Berapa lama prosesnya?</span>
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </button>
+                                    <div class="faq-answer">
+                                        <div class="answer-content">
+                                            Sangat cepat! Untuk 100 responden biasanya selesai dalam waktu kurang dari 1
+                                            menit.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="faq-item">
+                                    <button class="faq-question" onclick="toggleFaq(this)">
+                                        <span>Apakah bisa refund?</span>
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </button>
+                                    <div class="faq-answer">
+                                        <div class="answer-content">
+                                            Jika layanan gagal total karena kesalahan sistem kami, saldo token akan
+                                            dikembalikan.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="faq-item">
+                                    <button class="faq-question" onclick="toggleFaq(this)">
+                                        <span>Metode pembayaran apa?</span>
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </button>
+                                    <div class="faq-answer">
+                                        <div class="answer-content">
+                                            Kami menggunakan QRIS yang mendukung semua e-wallet dan mobile banking di
+                                            Indonesia.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
                         <footer>
                             <div class="footer-nav">
                                 <a href="#pricelist">Pricelist</a>
@@ -1263,7 +1368,12 @@
                 if (status) { status.innerText = ''; status.style.color = '#f87171'; } if (!v) {
                     if
                         (status) status.innerText = 'Masukkan link Google Form'; return;
-                } if
+                } 
+                if (v.includes('/edit')) {
+                    if (status) status.innerText = 'Tidak bisa mengggunakan link edit!';
+                    return;
+                }
+                if
                     (!v.includes('docs.google.com')) {
                     if (status) status.innerText = 'Link tidak valid';
                     return;
@@ -1447,6 +1557,31 @@
                 if (purchaseModal) purchaseModal.style.display = 'flex';
             }
 
+
+
+            // FAQ Accordion
+            function toggleFaq(button) {
+                const item = button.parentElement;
+                const answer = item.querySelector('.faq-answer');
+                const isActive = item.classList.contains('active');
+
+                // Close all other items (Optional - user might want multiple open)
+                // Let's keep it simple: multiple can be open or single? Single is usually cleaner.
+                document.querySelectorAll('.faq-item').forEach(otherItem => {
+                   if (otherItem !== item) {
+                       otherItem.classList.remove('active');
+                       otherItem.querySelector('.faq-answer').style.maxHeight = null;
+                   }
+                });
+
+                if (isActive) {
+                    item.classList.remove('active');
+                    answer.style.maxHeight = null;
+                } else {
+                    item.classList.add('active');
+                    answer.style.maxHeight = answer.scrollHeight + "px";
+                }
+            }
 
             const Toast = Swal.mixin({
                 toast: true,

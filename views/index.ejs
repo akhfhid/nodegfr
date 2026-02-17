@@ -205,33 +205,49 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      font-weight: 700;
-      font-size: 1.5rem;
-      letter-spacing: -1px;
-      color: var(--text-main);
       text-decoration: none;
       transition: var(--transition);
     }
 
-    .logo i {
-      color: var(--secondary);
-      filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.4));
+    .logo img {
+      height: 40px;
+      width: auto;
+      transition: opacity 0.3s ease;
+      filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.3));
+    }
+
+    .logo-img-light {
+      display: none;
+    }
+
+    body.light-theme .logo-img-dark {
+      display: none;
+    }
+
+    body.light-theme .logo-img-light {
+      display: block;
+      filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.3));
     }
 
     .logo span {
+      font-weight: 700;
+      font-size: 1.5rem;
+      letter-spacing: -1px;
       background: linear-gradient(to right, var(--text-main), #6366f1);
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
+      -webkit-text-stroke: 0.5px rgba(255, 255, 255, 0.2);
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    body.light-theme .logo span {
+        -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.2);
     }
 
     .logo:hover {
       transform: scale(1.05);
-      text-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
-    }
-
-    .logo img {
-      height: 32px;
+      filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.3));
     }
 
     /* --- URL QUICK CHANGE PANEL --- */
@@ -334,22 +350,25 @@
       border: 1px solid var(--border-color);
       transition: .4s;
       border-radius: 34px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 8px;
     }
 
     .slider:before {
       position: absolute;
-      content: "";
-      height: 22px;
-      width: 22px;
-      left: 4px;
-      bottom: 3px;
+      content: "\f186"; /* Moon Icon */
+      font-family: "Font Awesome 6 Free";
+      font-weight: 900;
+      height: 26px;
+      width: 26px;
+      left: 2px;
+      bottom: 1px;
       background-color: var(--primary);
+      color: white;
       transition: .4s;
       border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
       z-index: 2;
     }
 
@@ -358,22 +377,10 @@
     }
 
     input:checked+.slider:before {
-      transform: translateX(30px);
-    }
-
-    .icon-dark,
-    .icon-light {
-      color: var(--text-muted);
-      font-size: 14px;
-      z-index: 1;
-    }
-
-    .icon-light {
-      color: #f59e0b;
-    }
-
-    input:checked+.slider .icon-dark {
-      opacity: 0.5;
+      transform: translateX(30px) rotate(360deg);
+      content: "\f185"; /* Sun Icon */
+      background-color: #f59e0b; /* Sun Color */
+      color: white;
     }
 
     nav a:hover::after {
@@ -1028,35 +1035,40 @@
   </div>
 
   <header>
-    <div class="header-inner">
+    <div class="header-inner" id="main-header">
       <a href="/" class="logo">
-        <i class="fa-solid fa-bolt"></i>
+        <img src="/images/submark-white.png" alt="Autofill Logo" class="logo-img-dark">
+        <img src="/images/submark-black.png" alt="Autofill Logo" class="logo-img-light">
         <span>AUTOFILL</span>
       </a>
       <nav>
         <label class="theme-switch" title="Switch Theme">
           <input type="checkbox" id="theme-checkbox" onchange="toggleTheme(this)">
-          <span class="slider round">
-            <i class="fa-solid fa-moon icon-dark"></i>
-            <i class="fa-solid fa-sun icon-light"></i>
-          </span>
+          <span class="slider round"></span>
         </label>
         <a href="/#features">Features</a>
         <a href="/#pricelist">Pricelist</a>
         <a href="#" onclick="openTutorial(); return false;">Tutorial</a>
         <% if (locals.user) { %>
           <div class="user-menu" style="display:inline-flex; align-items:center; gap:10px; margin-left:15px;">
-            <img src="/user/avatar?v=<%= user.id %>" alt="Avatar" class="user-avatar"
-              style="width:32px;height:32px;border-radius:50%;" referrerpolicy="no-referrer"
-              onerror="this.src='https://ui-avatars.com/api/?name=<%= user.name %>'">
-            <span class="user-name">
-              <%= user.name.split(' ')[0] %></span>
-            <div class="user-balance"
-              style="background: var(--bg-deep); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border-color); font-size: 0.8rem; margin-left: 5px;">
-              <i class="fa-solid fa-coins" style="color: gold; margin-right: 5px;"></i>
-              <span id="navTokenBalance"><%= user.tokenBalance || 0 %></span>
-            </div>
-                <a href="#" class="btn-logout" title="Logout" onclick="openLogoutModal(); return false;"><i class="fa-solid fa-right-from-bracket"></i></a>
+            <% if (locals.user.role==='ADMIN' ) { %>
+              <a href="/admin"
+                style="text-decoration: none; color: var(--accent-warning); font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; border: 1px solid var(--accent-warning); padding: 4px 10px; border-radius: 20px;">
+                <i class="fa-solid fa-shield-halved"></i> Admin
+              </a>
+              <% } %>
+                <img src="/user/avatar?v=<%= user.id %>" alt="Avatar" class="user-avatar"
+                  style="width:32px;height:32px;border-radius:50%;" referrerpolicy="no-referrer"
+                  onerror="this.src='https://ui-avatars.com/api/?name=<%= user.name %>'">
+                <span class="user-name">
+                  <%= user.name.split(' ')[0] %></span>
+                <div class="user-balance"
+                  style="background: var(--bg-deep); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border-color); font-size: 0.8rem; margin-left: 5px;">
+                  <i class="fa-solid fa-coins" style="color: gold; margin-right: 5px;"></i> <span
+                    id="navTokenBalance"><%= user.tokenBalance || 0 %></span>
+                </div>
+                <a href="#" class="btn-logout" title="Logout" onclick="openLogoutModal(); return false;"><i
+                    class="fa-solid fa-right-from-bracket"></i></a>
           </div>
           <% } else { %>
             <a href="/auth/google" class="btn-login"
@@ -1199,8 +1211,8 @@
                                 style="list-style: none; cursor: pointer; display: flex; align-items: flex-start; justify-content: space-between; font-weight: 600; color: var(--text-main); transition: background 0.2s; gap: 15px;">
                                 <div class="question-title"
                                   style="display: flex; align-items: flex-start; gap: 10px; font-size: 0.95rem; flex: 1; min-width: 0;">
-                                  <i class="fa-regular fa-circle-question"
-                                    style="color: var(--secondary); margin-top: 3px; flex-shrink: 0;"></i>
+                                  <i class="fa-solid fa-chevron-right"
+                                    style="color: var(--secondary); margin-top: 5px; flex-shrink: 0; font-size: 0.8rem;"></i>
                                   <span style="overflow-wrap: break-word; word-break: break-word; line-height: 1.4;">
                                     <%= q.question %>
                                   </span>
@@ -1603,22 +1615,16 @@
                   // Proportional share
                   newVal = (currentVal / currentSumOthers) * remaining;
                 } else {
-                  // If all others were 0, distribute remaining equally
                   newVal = remaining / otherInputs.length;
                 }
 
-                // Update input directly
                 inp.value = newVal;
               });
 
-              // Update Visuals & Hidden Data for ALL inputs
               inputs.forEach(inp => {
                 let container = inp.closest('li, .other-option, .option-input');
                 if (!container) return;
-
                 let val = parseFloat(inp.value) || 0;
-
-                // Update Display Text
                 let displayDiv = container.querySelector(".calc-display");
                 if (displayDiv) displayDiv.textContent = val.toFixed(2);
 
@@ -1917,6 +1923,11 @@
               if (!url) return;
 
               // Basic validation
+              if (url.includes('/edit')) {
+                alert('Cannot use edit link! Click Send -> Link icon -> Copy.');
+                return;
+              }
+
               if (!url.includes('docs.google.com/forms')) {
                 alert('Please enter a valid Google Forms URL');
                 return;
