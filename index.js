@@ -823,9 +823,24 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
                         // Check if this entry already exists in cumulative (update it)
                         const existingIdx = cumulativeEntries.findIndex(e => e && e[1] === entryId);
                         if (existingIdx >= 0) {
-                            // CRITICAL FIX 2: Append to existing values array (handle checkboxes/multi-select AND other options)
-                            // cumulativeEntries element structure: [null, entryId, [values], 0]
-                            cumulativeEntries[existingIdx][2].push(value);
+                            // Found existing entry.
+                            if (key.includes('other_option_response')) {
+                                // "Other" text value: Replace "__other_option__" sentinel if present
+                                const valArr = cumulativeEntries[existingIdx][2];
+                                const sentinelIdx = valArr.indexOf('__other_option__');
+                                if (sentinelIdx >= 0) {
+                                    valArr[sentinelIdx] = value; // Replace sentinel with actual text
+                                } else {
+                                    // Sentinel not found (unexpected order?), just push
+                                    valArr.push(value);
+                                }
+                            } else {
+                                // Normal value (or sentinel "__other_option__")
+                                // Only push if we don't already have this value (avoid duplicates)
+                                if (!cumulativeEntries[existingIdx][2].includes(value)) {
+                                    cumulativeEntries[existingIdx][2].push(value);
+                                }
+                            }
                         } else {
                             cumulativeEntries.push([null, entryId, [value], 0]);
                         }
