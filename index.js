@@ -490,7 +490,8 @@ app.post('/save-probabilities', ensureAuthenticated, express.json({ limit: '50mb
 
             // Track selections for stats
             const selections = [];
-            const formUrl = decodeToGoogleFormUrl(baseUrl, newData, selections);
+            // Pass 'i' as iterationIndex for sequential logic
+            const formUrl = decodeToGoogleFormUrl(baseUrl, newData, selections, i);
 
             // Populate stats for the standard fields
             selections.forEach(sel => {
@@ -793,6 +794,17 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
                 return lastResult;
             }
 
+            // CRITICAL FIX 1: Update fbzx from response for the next request
+            // Google Forms often returns a new fbzx in the intermediate page HTML
+            const fbzxMatch = lastResult.body.match(/name="fbzx"\s+value="([^"]+)"/);
+            if (fbzxMatch && fbzxMatch[1]) {
+                const newFbzx = fbzxMatch[1];
+                if (newFbzx !== fbzx) {
+                    console.log(`[MULTIPAGE] Updated fbzx: ${fbzx} -> ${newFbzx}`);
+                    fbzx = newFbzx;
+                }
+            }
+
             // Add this page's entries to cumulative for next page's partialResponse
             currentPageEntries.forEach(([key, value]) => {
                 if (key.startsWith('entry.') && !key.includes('_sentinel') && !key.includes('other_option_response')) {
@@ -801,7 +813,9 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
                         // Check if this entry already exists in cumulative (update it)
                         const existingIdx = cumulativeEntries.findIndex(e => e && e[1] === entryId);
                         if (existingIdx >= 0) {
-                            cumulativeEntries[existingIdx] = [null, entryId, [value], 0];
+                            // CRITICAL FIX 2: Append to existing values array (handle checkboxes/multi-select)
+                            // cumulativeEntries element structure: [null, entryId, [values], 0]
+                            cumulativeEntries[existingIdx][2].push(value);
                         } else {
                             cumulativeEntries.push([null, entryId, [value], 0]);
                         }
@@ -1382,7 +1396,7 @@ app.listen(PORT, () => {
     console.log(`Example app listening on port ${PORT}`);
 });
 
-function decodeToGoogleFormUrl(baseUrl, data, selections = []) {
+function decodeToGoogleFormUrl(baseUrl, data, selections, iterationIndex = 0) {
     baseUrl = baseUrl.replace(/viewform/, 'formResponse');
     const urlParams = new URLSearchParams();
 
@@ -1394,27 +1408,40 @@ function decodeToGoogleFormUrl(baseUrl, data, selections = []) {
         const isMultipleChoice = entry.checkbox;
         const hasOtherOption = entry.hasOtherOption;
         const items = entry.items;
+
+        // SEQUENTIAL LOGIC:
+        // Use iterationIndex to pick item cyclically
+        // If items.length is 0, skip
+        if (items.length === 0) continue;
+
         let selectedResult;
-        console.log(`[DECIDER] Question: ${name} (${items.length} options)`);
-        items.forEach(i => console.log(` - ${i.option.substring(0, 10)}... : ${i.chance}% (Other: ${i.isOtherOption})`));
 
         if (isMultipleChoice) {
-            selectedResult = selectIndependentOptions(items);
-            const selectionValues = [];
-            selectedResult.forEach(option => {
-                if (hasOtherOption && option.isOtherOption) {
-                    urlParams.append(name + '.other_option_response', option.option);
-                    urlParams.append(name, '__other_option__');
-                } else {
-                    urlParams.append(name, option.option);
-                }
-                selectionValues.push(option.option);
-            });
-            selections.push({ name, values: selectionValues });
-        } else {
-            selectedResult = selectWeightedRandomItem(items);
+            // For Checkboxes (Multiple Choice), we need a strategy.
+            // Strategy: Treat the list of items as a sequence of single selections?
+            // OR: Select ONE item per response sequentially?
+            // User asked for "Short Answer" context where each line is an answer.
+            // For Checkboxes, let's assume we pick ONE option per response sequentially too.
+            // Use modulo to loop
+            const index = iterationIndex % items.length;
+            selectedResult = items[index];
 
-            console.log(`[DECIDER] Selected: ${selectedResult.option} (isOther: ${selectedResult.isOtherOption})`);
+            console.log(`[DECIDER] Sequential Selection (Checkbox) [${iterationIndex}]: ${selectedResult.option}`);
+
+            if (hasOtherOption && selectedResult.isOtherOption) {
+                urlParams.append(name + '.other_option_response', selectedResult.option);
+                urlParams.append(name, '__other_option__');
+            } else {
+                urlParams.append(name, selectedResult.option);
+            }
+            selections.push({ name, values: [selectedResult.option] });
+
+        } else {
+            // Short Answer / Radio / Dropdown
+            const index = iterationIndex % items.length;
+            selectedResult = items[index];
+
+            console.log(`[DECIDER] Sequential Selection [${iterationIndex}]: ${selectedResult.option} (isOther: ${selectedResult.isOtherOption})`);
 
             if (selectedResult.isOtherOption) {
                 urlParams.append(name + '.other_option_response', selectedResult.option);
