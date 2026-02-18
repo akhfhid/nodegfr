@@ -2252,11 +2252,20 @@
                 data: data
               };
 
+              // Get and sanitize form title for filename
+              const formTitleEl = document.querySelector('.form-title');
+              let formName = 'config';
+              if (formTitleEl) {
+                  formName = formTitleEl.innerText.trim().toLowerCase()
+                             .replace(/\s+/g, '-')           // Replace spaces with -
+                             .replace(/[^a-z0-9-]/g, '');    // Remove non-alphanumeric
+              }
+
               const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              a.download = 'autofill-config.json';
+              a.download = `autofill-${formName}.json`;
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);

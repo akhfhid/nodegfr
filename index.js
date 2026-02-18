@@ -227,9 +227,23 @@ app.post('/api/purchase', ensureAuthenticated, async (req, res) => {
             });
 
             if (voucher) {
-                discountAmount = Math.floor((originalPrice * voucher.percent) / 100);
-                finalAmount = originalPrice - discountAmount;
-                validatedVoucher = voucher.code;
+                // Check if user has already USED this voucher successfully
+                const usedVoucher = await prisma.transaction.findFirst({
+                    where: {
+                        userId: req.user.id,
+                        voucherCode: voucher.code,
+                        status: 'SUCCESS'
+                    }
+                });
+
+                if (usedVoucher) {
+                    // Do not apply discount if already used
+                    console.log(`User ${req.user.id} already used voucher ${voucher.code}`);
+                } else {
+                    discountAmount = Math.floor((originalPrice * voucher.percent) / 100);
+                    finalAmount = originalPrice - discountAmount;
+                    validatedVoucher = voucher.code;
+                }
             }
         } catch (voucherError) {
             console.error("Voucher validation error:", voucherError);
@@ -294,12 +308,25 @@ app.post('/api/voucher/check', ensureAuthenticated, async (req, res) => {
         });
 
         if (voucher) {
-            res.json({
-                valid: true,
-                code: voucher.code,
-                percent: voucher.percent,
-                description: voucher.description
+            // Check if user has already USED this voucher successfully
+            const usedVoucher = await prisma.transaction.findFirst({
+                where: {
+                    userId: req.user.id,
+                    voucherCode: voucher.code,
+                    status: 'SUCCESS'
+                }
             });
+
+            if (usedVoucher) {
+                res.json({ valid: false, message: "Kamu sudah pernah menggunakan voucher ini" });
+            } else {
+                res.json({
+                    valid: true,
+                    code: voucher.code,
+                    percent: voucher.percent,
+                    description: voucher.description
+                });
+            }
         } else {
             res.json({ valid: false, message: "Voucher tidak ditemukan atau sudah tidak aktif" });
         }
