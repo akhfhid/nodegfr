@@ -83,7 +83,7 @@
             z-index: -1;
             overflow: hidden;
             background: var(--bg-deep);
-            background-image: 
+            background-image:
                 linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
             background-size: 50px 50px;
@@ -91,7 +91,7 @@
         }
 
         body.light-theme .ambient-bg {
-            background-image: 
+            background-image:
                 linear-gradient(rgba(0, 0, 0, 0.08) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(0, 0, 0, 0.08) 1px, transparent 1px);
         }
@@ -186,7 +186,7 @@
             background-clip: text;
             -webkit-text-fill-color: transparent;
             -webkit-text-stroke: 0.5px rgba(255, 255, 255, 0.2);
-            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         body.light-theme .logo span {
@@ -290,7 +290,8 @@
 
         .slider:before {
             position: absolute;
-            content: "\f186"; /* Moon Icon */
+            content: "\f186";
+            /* Moon Icon */
             font-family: "Font Awesome 6 Free";
             font-weight: 900;
             height: 26px;
@@ -314,8 +315,10 @@
 
         input:checked+.slider:before {
             transform: translateX(30px) rotate(360deg);
-            content: "\f185"; /* Sun Icon */
-            background-color: #f59e0b; /* Sun Color */
+            content: "\f185";
+            /* Sun Icon */
+            background-color: #f59e0b;
+            /* Sun Color */
             color: white;
         }
 
@@ -331,11 +334,13 @@
         .hero::before {
             content: '';
             position: absolute;
-            top: -200px; /* Extend up behind header */
+            top: -200px;
+            /* Extend up behind header */
             left: 50%;
             transform: translateX(-50%);
             width: 100vw;
-            height: 140%; /* Extend down */
+            height: 140%;
+            /* Extend down */
             background: var(--bg-deep);
             background-image: radial-gradient(circle at center, rgba(139, 92, 246, 0.15) 0%, transparent 60%);
             z-index: -1;
@@ -1119,7 +1124,7 @@
                         </main>
 
                         <section class="features-grid" id="features">
-                            
+
                             <div class="glass-panel feature-card">
                                 <div class="icon-box"><i class="fas fa-bolt"></i></div>
                                 <h3>Super Fast</h3>
@@ -1200,12 +1205,13 @@
                                     </button>
                                     <div class="faq-answer">
                                         <div class="answer-content">
-                                            Sistem kami bekerja dengan cara: 
+                                            Sistem kami bekerja dengan cara:
                                             <ol style="margin-left: 20px; margin-top: 10px;">
                                                 <li>Anda memasukkan link Google Form.</li>
                                                 <li>Sistem akan memindai (scan) pertanyaan yang ada.</li>
                                                 <li>Anda mengatur jumlah responden dan probabilitas jawaban.</li>
-                                                <li>Bot pintar kami akan mengisi form secara otomatis sesuai settingan Anda.</li>
+                                                <li>Bot pintar kami akan mengisi form secara otomatis sesuai settingan
+                                                    Anda.</li>
                                             </ol>
                                         </div>
                                     </div>
@@ -1270,14 +1276,18 @@
                                 <a href="/">Home</a>
                                 <a href="#faq">FAQ</a>
                             </div>
-                            <div class="social-links" style="margin: 20px 0; display: flex; justify-content: center; gap: 20px;">
-                                <a href="https://instagram.com/autofill.id" target="_blank" title="Instagram" style="color: var(--text-muted); font-size: 1.2rem; transition: var(--transition);">
+                            <div class="social-links"
+                                style="margin: 20px 0; display: flex; justify-content: center; gap: 20px;">
+                                <a href="https://instagram.com/autofill.id" target="_blank" title="Instagram"
+                                    style="color: var(--text-muted); font-size: 1.2rem; transition: var(--transition);">
                                     <i class="fa-brands fa-instagram"></i>
                                 </a>
-                                <a href="https://x.com/autofillsite" target="_blank" title="Twitter / X" style="color: var(--text-muted); font-size: 1.2rem; transition: var(--transition);">
+                                <a href="https://x.com/autofillsite" target="_blank" title="Twitter / X"
+                                    style="color: var(--text-muted); font-size: 1.2rem; transition: var(--transition);">
                                     <i class="fa-brands fa-x-twitter"></i>
                                 </a>
-                                <a href="https://wa.me/6285190000758" target="_blank" title="WhatsApp" style="color: var(--text-muted); font-size: 1.2rem; transition: var(--transition);">
+                                <a href="https://wa.me/6285190000758" target="_blank" title="WhatsApp"
+                                    style="color: var(--text-muted); font-size: 1.2rem; transition: var(--transition);">
                                     <i class="fa-brands fa-whatsapp"></i>
                                 </a>
                             </div>
@@ -1401,7 +1411,7 @@
                 if (status) { status.innerText = ''; status.style.color = '#f87171'; } if (!v) {
                     if
                         (status) status.innerText = 'Masukkan link Google Form'; return;
-                } 
+                }
                 if (v.includes('/edit')) {
                     if (status) status.innerText = 'Tidak bisa mengggunakan link edit!';
                     return;
@@ -1594,10 +1604,10 @@
                 const isActive = item.classList.contains('active');
 
                 document.querySelectorAll('.faq-item').forEach(otherItem => {
-                   if (otherItem !== item) {
-                       otherItem.classList.remove('active');
-                       otherItem.querySelector('.faq-answer').style.maxHeight = null;
-                   }
+                    if (otherItem !== item) {
+                        otherItem.classList.remove('active');
+                        otherItem.querySelector('.faq-answer').style.maxHeight = null;
+                    }
                 });
 
                 if (isActive) {
