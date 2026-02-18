@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -82,7 +82,7 @@ model Transaction {
   amount    Int
   tokens    Int
   
-  snapToken String?  @db.Text
+  snapToken String?
   status    String   @default("PENDING") // PENDING, SUCCESS, FAILED
   
   createdAt DateTime @default(now())
@@ -128,7 +128,7 @@ model TokenPackage {
 model AdminLog {
   id         String   @id @default(uuid())
   action     String   // ADD_TOKENS, DEDUCT_TOKENS, etc.
-  details    String   @db.Text
+  details    String
   reason     String?
   adminEmail String
   targetUser String?  // Email of the affected user
