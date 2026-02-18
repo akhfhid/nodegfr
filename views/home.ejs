@@ -522,80 +522,108 @@
             font-size: 0.9rem;
         }
 
-        .packages-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            margin-bottom: 120px;
-        }
-
-        .package-card {
-            padding: 40px;
+        .pricing-panel {
+            max-width: 800px;
+            margin: 0 auto 120px;
+            padding: 50px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 30px;
             display: flex;
             flex-direction: column;
+            gap: 40px;
             position: relative;
             overflow: hidden;
         }
 
-        .package-card:hover {
-            transform: scale(1.02);
-            border-color: var(--primary);
-        }
-
-        .package-badge {
+        .pricing-panel::before {
+            content: '';
             position: absolute;
-            top: 20px;
-            right: 20px;
-            background: var(--primary);
-            color: white;
-            font-size: 0.7rem;
-            font-weight: 700;
-            padding: 4px 12px;
-            border-radius: 50px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at center, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
+            z-index: -1;
         }
 
-        .package-range {
+        .tiers-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .tier-item {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 30px 20px;
+            border-radius: 20px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: var(--transition);
+        }
+
+        .tier-item:hover {
+            border-color: var(--secondary);
+            transform: translateY(-5px);
+            background: rgba(6, 182, 212, 0.05);
+        }
+
+        .tier-range {
             color: var(--text-muted);
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-
-        .package-number {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 8px;
-            color: var(--text-main);
-        }
-
-        .package-price {
-            font-size: 1.1rem;
-            color: var(--text-muted);
-            margin-bottom: 30px;
-            padding-bottom: 30px;
-            border-bottom: 1px solid var(--header-border);
-        }
-
-        .package-price b {
-            color: var(--secondary);
-            font-size: 1.8rem;
-        }
-
-        .btn-select {
-            margin-top: auto;
-            background: transparent;
-            border: 1px solid var(--input-border);
-            color: var(--text-main);
-            padding: 16px;
-            border-radius: 12px;
+            font-size: 0.85rem;
             font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .tier-price {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+
+        .tier-price b {
+            color: var(--secondary);
+        }
+
+        .tier-unit {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .btn-purchase-main {
+            background: linear-gradient(135deg, var(--primary), #7c3aed);
+            color: white;
+            padding: 20px 60px;
+            border-radius: 100px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border: none;
             cursor: pointer;
             transition: var(--transition);
+            align-self: center;
+            box-shadow: 0 10px 30px rgba(124, 58, 237, 0.3);
             text-transform: uppercase;
-            font-size: 0.85rem;
             letter-spacing: 1px;
+        }
+
+        .btn-purchase-main:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(124, 58, 237, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .pricing-panel {
+                padding: 30px 20px;
+            }
+            .tiers-container {
+                grid-template-columns: 1fr;
+            }
+            .tier-item {
+                padding: 20px;
+            }
         }
 
         .btn-select:hover {
@@ -1152,41 +1180,27 @@
                                 <p>Pilih jumlah responden sesuai kebutuhan Anda. Makin banyak, makin murah!</p>
                             </div>
 
-                            <div class="packages-grid">
-                                <!-- Starter Package -->
-                                <div class="glass-panel package-card">
-                                    <span class="package-range">Starter</span>
-                                    <div class="package-number">100</div>
-                                    <p style="color:var(--text-muted); margin-bottom:20px;">Responden</p>
-                                    <div class="package-price">Rp <b>40k</b></div>
-                                    <button class="btn-select" onclick="openPurchaseModal(100)">Beli Paket</button>
-                                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">Paket
-                                        hemat untuk trial.</div>
+                            <div class="pricing-panel glass-panel">
+                                <div class="tiers-container">
+                                    <div class="tier-item">
+                                        <span class="tier-range">1 - 99 Responden</span>
+                                        <div class="tier-price">Rp <b>500</b><span class="tier-unit">/token</span></div>
+                                    </div>
+                                    <div class="tier-item" style="border-color: rgba(6, 182, 212, 0.3); background: rgba(6, 182, 212, 0.05);">
+                                        <span class="tier-range" style="color: var(--secondary);">100 - 299 Responden</span>
+                                        <div class="tier-price">Rp <b>400</b><span class="tier-unit">/token</span></div>
+                                    </div>
+                                    <div class="tier-item">
+                                        <span class="tier-range">300 - 700 Responden</span>
+                                        <div class="tier-price">Rp <b>350</b><span class="tier-unit">/token</span></div>
+                                    </div>
                                 </div>
-
-                                <!-- Popular Package -->
-                                <div class="glass-panel package-card active">
-                                    <span class="package-badge">Best Seller</span>
-                                    <span class="package-range" style="color: gold;"><i class="fa-solid fa-star"></i>
-                                        Popular</span>
-                                    <div class="package-number">500</div>
-                                    <p style="color:var(--text-muted); margin-bottom:20px;">Responden</p>
-                                    <div class="package-price">Rp <b>200k</b></div>
-                                    <button class="btn-select" onclick="openPurchaseModal(500)">Beli Paket</button>
-                                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">Paling
-                                        diminati mahasiswa.</div>
-                                </div>
-
-                                <!-- Pro Package -->
-                                <div class="glass-panel package-card">
-                                    <span class="package-range">Pro</span>
-                                    <div class="package-number">1000</div>
-                                    <p style="color:var(--text-muted); margin-bottom:20px;">Responden</p>
-                                    <div class="package-price">Rp <b>400k</b></div>
-                                    <button class="btn-select" onclick="openPurchaseModal(1000)">Beli Paket</button>
-                                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">Solusi
-                                        lengkap tanpa batas.</div>
-                                </div>
+                                <button class="btn-purchase-main" onclick="openPurchaseModal(100)">
+                                    <i class="fa-solid fa-cart-shopping" style="margin-right: 10px;"></i> Beli Token Sekarang
+                                </button>
+                                <p style="text-align: center; font-size: 0.85rem; color: var(--text-muted); margin-top: -10px;">
+                                    *Token digunakan untuk 1 responden mengisi 1 form. Saldo token tidak pernah hangus.
+                                </p>
                             </div>
                         </section>
 
@@ -1349,20 +1363,35 @@
                         style="width: 100%; padding: 15px; background: var(--bg-deep); border: 2px solid var(--border-color); border-radius: 12px; font-size: 1.2rem; color: var(--text-main); font-weight: bold;">
                     <div
                         style="margin-top: 10px; font-size: 0.9rem; color: var(--text-muted); display: flex; justify-content: space-between;">
-                        <span id="modalRateDisplay">Harga: Rp 400 / resp</span>
+                        <span id="modalRateDisplay">Harga: Rp 500 / resp</span>
                         <span>Min: 1 - Max: 700</span>
                     </div>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600;">Kode Voucher (Opsional)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="voucherCodeInput" placeholder="KODEPROMO"
+                            style="flex-grow: 1; padding: 12px; background: var(--bg-deep); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-main); text-transform: uppercase;">
+                        <button onclick="checkVoucher()"
+                            style="padding: 10px 20px; background: var(--secondary); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600;">Pakai</button>
+                    </div>
+                    <p id="voucherMessage" style="font-size: 0.8rem; margin-top: 5px; min-height: 1.2rem;"></p>
                 </div>
 
                 <div
                     style="background: var(--bg-deep); padding: 20px; border-radius: 15px; border: 1px solid var(--border-color); margin-bottom: 25px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                        <span style="color: var(--text-muted);">Total Token</span>
+                        <span style="color: var(--text-muted);">Total Responden</span>
                         <span style="font-weight: 700;" id="modalTokenCount">100 pcs</span>
+                    </div>
+                    <div id="discountDisplay" style="display: none; justify-content: space-between; margin-bottom: 10px; color: var(--accent-success);">
+                        <span>Diskon Voucher</span>
+                        <span id="discountValue">-Rp 0</span>
                     </div>
                     <div
                         style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 5px;">
-                        <span style="font-weight: 600;">Total Harga</span>
+                        <span style="font-weight: 600;">Total Bayar</span>
                         <span style="font-size: 1.5rem; font-weight: 800; color: var(--primary);"
                             id="modalTotalPrice">Rp 40.000</span>
                     </div>
@@ -1502,21 +1531,16 @@
                 let val = parseInt(modalTokenInput.value);
                 if (!val || val < 1) val = 0;
 
-                // Try to find matching package
-                const pkg = availablePackages.find(p => p.tokens === val && p.active);
-
-                let total;
-                let rateDisplay = '';
-
-                if (pkg) {
-                    total = pkg.price;
-                    const rate = Math.round(pkg.price / pkg.tokens);
-                    rateDisplay = `Harga Paket: Rp ${pkg.price.toLocaleString('id-ID')}`;
-                } else {
-                    let rate = 400;
-                    total = val * rate;
-                    rateDisplay = `Harga: Rp ${rate} / resp`;
+                // Tiered Pricing Logic (Match Backend)
+                let rate = 500;
+                if (val >= 300) {
+                    rate = 350;
+                } else if (val >= 100) {
+                    rate = 400;
                 }
+
+                let total = val * rate;
+                let rateDisplay = `Harga: Rp ${rate} / resp`;
 
                 let finalTotal = total;
 
@@ -1525,9 +1549,10 @@
                     finalTotal = total - discount;
 
                     const discountDisplay = document.getElementById('discountDisplay');
-                    if (discountDisplay) {
-                        discountDisplay.style.display = 'block';
-                        discountDisplay.innerText = `Hemat ${currentDiscountPercent}% (-Rp ${discount.toLocaleString('id-ID')})`;
+                    const discountValue = document.getElementById('discountValue');
+                    if (discountDisplay && discountValue) {
+                        discountDisplay.style.display = 'flex';
+                        discountValue.innerText = `-Rp ${discount.toLocaleString('id-ID')}`;
                     }
                 } else {
                     const discountDisplay = document.getElementById('discountDisplay');
@@ -1535,7 +1560,7 @@
                 }
 
                 if (modalRateDisplay) modalRateDisplay.innerText = rateDisplay;
-                if (modalTokenCount) modalTokenCount.innerText = `${val} pcs`;
+                if (modalTokenCount) modalTokenCount.innerText = `${val} responden`;
                 if (modalTotalPrice) modalTotalPrice.innerText = `Rp ${finalTotal.toLocaleString('id-ID')}`;
             }
 

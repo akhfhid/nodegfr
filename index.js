@@ -6,7 +6,9 @@ const { Faker, id_ID } = require('@faker-js/faker');
 const path = require('path');
 
 const app = express();
-const PORT = 3000;
+app.set('server.allowedHosts', ['autofill.site', 'www.autofill.site', 'localhost']);
+app.set('trust proxy', 1); // Trust first proxy (Cloudflare)
+const PORT = process.env.PORT || 9997;
 
 // Init Prisma
 const { PrismaClient } = require('@prisma/client');
@@ -198,7 +200,7 @@ app.get('/', (req, res) => {
 const { snap } = require('./midtrans');
 
 app.post('/api/purchase', ensureAuthenticated, async (req, res) => {
-    const { tokens } = req.body;
+    const { tokens, voucherCode } = req.body;
     const tokenCount = parseInt(tokens);
 
     // 1. Validate Token Count (Min 1)
@@ -206,34 +208,56 @@ app.post('/api/purchase', ensureAuthenticated, async (req, res) => {
         return res.status(400).json({ error: "Minimal pembelian adalah 1 responden." });
     }
 
-    // 2. Calculate Price (Server-Side Validation)
-    // Flat rate: 1 per token (for testing)
-    let rate = 1;
+    let rate = 500;
+    if (tokenCount >= 300) {
+        rate = 350;
+    } else if (tokenCount >= 100) {
+        rate = 400;
+    }
 
-    let totalAmount = tokenCount * rate;
+    const originalPrice = tokenCount * rate;
+    let finalAmount = originalPrice;
+    let discountAmount = 0;
+    let validatedVoucher = null;
+
+    if (voucherCode) {
+        try {
+            const voucher = await prisma.voucher.findUnique({
+                where: { code: voucherCode.toUpperCase(), active: true }
+            });
+
+            if (voucher) {
+                discountAmount = Math.floor((originalPrice * voucher.percent) / 100);
+                finalAmount = originalPrice - discountAmount;
+                validatedVoucher = voucher.code;
+            }
+        } catch (voucherError) {
+            console.error("Voucher validation error:", voucherError);
+        }
+    }
+
     const packageId = `CUSTOM-${tokenCount}`;
-
-    // 1. Create Order ID
     const orderId = `ORDER-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    // 2. Save Transaction PENDING
     try {
         await prisma.transaction.create({
             data: {
                 id: orderId,
                 userId: req.user.id,
                 package: packageId,
-                amount: totalAmount,
+                amount: finalAmount,
                 tokens: tokenCount,
+                originalPrice: originalPrice,
+                discountAmount: discountAmount,
+                voucherCode: validatedVoucher,
                 status: 'PENDING'
             }
         });
 
-        // 3. Request Snap Token
         let parameter = {
             "transaction_details": {
                 "order_id": orderId,
-                "gross_amount": totalAmount
+                "gross_amount": finalAmount
             },
             "credit_card": {
                 "secure": true
@@ -247,7 +271,6 @@ app.post('/api/purchase', ensureAuthenticated, async (req, res) => {
         const transaction = await snap.createTransaction(parameter);
         const snapToken = transaction.token;
 
-        // Update DB with snapToken
         await prisma.transaction.update({
             where: { id: orderId },
             data: { snapToken: snapToken }
@@ -258,6 +281,31 @@ app.post('/api/purchase', ensureAuthenticated, async (req, res) => {
     } catch (e) {
         console.error("Midtrans Error:", e);
         res.status(500).json({ error: "Failed to create transaction" });
+    }
+});
+
+app.post('/api/voucher/check', ensureAuthenticated, async (req, res) => {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ valid: false, message: "Kode voucher kosong" });
+
+    try {
+        const voucher = await prisma.voucher.findUnique({
+            where: { code: code.toUpperCase(), active: true }
+        });
+
+        if (voucher) {
+            res.json({
+                valid: true,
+                code: voucher.code,
+                percent: voucher.percent,
+                description: voucher.description
+            });
+        } else {
+            res.json({ valid: false, message: "Voucher tidak ditemukan atau sudah tidak aktif" });
+        }
+    } catch (error) {
+        console.error("Voucher API error:", error);
+        res.status(500).json({ valid: false, message: "Terjadi kesalahan sistem" });
     }
 });
 
