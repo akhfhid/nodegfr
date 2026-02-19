@@ -5,13 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Autofill Automation</title>
-    
-    <!-- SEO Meta Tags -->
     <meta name="robots" content="noindex, nofollow">
-
-    <!-- Favicon -->
     <link rel="icon" type="image/png" href="/images/mark-white.png">
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
@@ -282,7 +277,6 @@
             font-weight: 600;
         }
 
-        /* Theme Toggle */
         .theme-switch {
             position: relative;
             display: inline-block;
@@ -363,7 +357,6 @@
             transform: translateY(-2px);
         }
 
-        /* Page Title */
         .page-title {
             font-size: 2rem;
             font-weight: 700;
@@ -380,7 +373,6 @@
             margin-bottom: 30px;
         }
 
-        /* Stats Grid */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -443,7 +435,6 @@
             letter-spacing: 1px;
         }
 
-        /* Section Header */
         .section-header {
             display: flex;
             justify-content: space-between;
@@ -457,7 +448,6 @@
             color: var(--text-main);
         }
 
-        /* Table */
         .data-table {
             width: 100%;
             border-collapse: collapse;
@@ -502,7 +492,6 @@
             margin-bottom: 0;
         }
 
-        /* Custom scrollbar for better look */
         .table-responsive::-webkit-scrollbar {
             height: 6px;
         }
@@ -539,7 +528,6 @@
             color: var(--text-muted);
         }
 
-        /* Badges */
         .badge {
             display: inline-block;
             padding: 4px 10px;
@@ -563,7 +551,6 @@
             color: var(--accent-warning);
         }
 
-        /* Buttons */
         .btn {
             padding: 10px 20px;
             border-radius: 50px;
@@ -614,7 +601,6 @@
             border-color: var(--accent-danger);
         }
 
-        /* Search and Filter UI */
         .search-box {
             position: relative;
             width: 280px;
@@ -644,7 +630,6 @@
             box-shadow: 0 0 0 4px var(--accent-glow);
         }
 
-        /* Pagination */
         .pagination {
             display: flex;
             align-items: center;
@@ -727,7 +712,6 @@
             box-shadow: 0 0 15px rgba(124, 58, 237, 0.2);
         }
 
-        /* Server Stats Styling */
         .stats-detail-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -1005,7 +989,6 @@
             background: var(--bg-card-hover) !important;
         }
 
-        /* Light theme adjustments for SweetAlert */
         body.light-theme .swal2-popup {
             background: rgba(255, 255, 255, 0.85) !important;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
@@ -1199,7 +1182,6 @@
             </div>
         </div>
 
-        <!-- Logs Tab -->
         <div id="logs" class="tab-content">
             <div class="glass-panel">
                 <div class="section-header">
@@ -1219,7 +1201,6 @@
             </div>
         </div>
 
-        <!-- Pricing Tab -->
         <div id="pricing" class="tab-content">
             <div class="glass-panel">
                 <div class="section-header">
@@ -1237,7 +1218,6 @@
             </div>
         </div>
 
-        <!-- Server Stats Tab -->
         <div id="server_stats" class="tab-content">
             <div class="glass-panel">
                 <div class="section-header">
@@ -1256,7 +1236,6 @@
     </div>
 
     <script>
-        // Theme Toggle
         const themeToggle = document.getElementById('themeToggle');
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'light') {
@@ -1273,7 +1252,6 @@
             }
         });
 
-        // Tab Switching
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const tab = btn.dataset.tab;
@@ -1282,7 +1260,6 @@
                 btn.classList.add('active');
                 document.getElementById(tab).classList.add('active');
 
-                // Auto-load data for current tab
                 if (tab === 'users') loadUsers(1);
                 else if (tab === 'vouchers') loadVouchers();
                 else if (tab === 'transactions') loadTransactions(1);
@@ -1292,14 +1269,12 @@
             });
         });
 
-        // Global state for pagination
         const state = {
             users: { page: 1, limit: 10, q: '' },
             transactions: { page: 1, limit: 10, q: '' },
             logs: { page: 1, limit: 10, q: '' }
         };
 
-        // Reusable Pagination Renderer
         function renderPagination(containerId, pagination, onPageChange) {
             const container = document.getElementById(containerId);
             if (!container) return;
@@ -1314,7 +1289,6 @@
                     </button>
             `;
 
-            // Page numbers
             let startPage = Math.max(1, page - 2);
             let endPage = Math.min(totalPages, startPage + 4);
             if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
@@ -1334,7 +1308,6 @@
             container.innerHTML = html;
         }
 
-        // Load Users (Paginated)
         async function loadUsers(page = 1) {
             state.users.page = page;
             const container = document.getElementById('usersTable');
@@ -1403,7 +1376,6 @@
                 html += '</tbody></table>';
                 container.innerHTML = html;
                 container.classList.remove('loading');
-                
                 renderPagination('usersPagination', pagination, 'loadUsers');
             } catch (err) {
                 container.innerHTML = '<p style="color: var(--accent-danger);">Error loading users</p>';
@@ -1411,7 +1383,6 @@
             }
         }
 
-        // Search Listeners
         let userSearchTimeout;
         document.getElementById('userSearch').addEventListener('input', (e) => {
             clearTimeout(userSearchTimeout);
@@ -1433,7 +1404,6 @@
             logSearchTimeout = setTimeout(() => loadLogs(1), 300);
         });
 
-        // Load Vouchers
         async function loadVouchers() {
             try {
                 const res = await fetch('/api/admin/vouchers');
@@ -1486,7 +1456,6 @@
             }
         }
 
-        // Create Voucher
         document.getElementById('createVoucherForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const code = document.getElementById('voucherCode').value;
@@ -1513,7 +1482,6 @@
             }
         });
 
-        // Toggle Voucher
         async function toggleVoucher(id) {
             try {
                 await fetch(`/api/admin/vouchers/${id}`, { method: 'PUT' });
@@ -1523,7 +1491,6 @@
             }
         }
 
-        // Delete Voucher
         async function deleteVoucher(id) {
             const result = await Swal.fire({
                 title: 'Delete Voucher?',
@@ -1545,7 +1512,6 @@
             }
         }
 
-        // Load Transactions (Paginated)
         async function loadTransactions(page = 1) {
             state.transactions.page = page;
             const container = document.getElementById('transactionsTable');
@@ -1594,11 +1560,9 @@
                         </tr>`;
                     });
                 }
-
                 html += '</tbody></table>';
                 container.innerHTML = html;
                 container.classList.remove('loading');
-                
                 renderPagination('transactionsPagination', pagination, 'loadTransactions');
             } catch (err) {
                 container.innerHTML = '<p style="color: var(--accent-danger);">Error loading transactions</p>';
@@ -1606,7 +1570,6 @@
             }
         }
 
-        // Show User Forms Modal
         function showUserForms(userName, forms) {
             const formsHtml = forms.map(form => `
                 <div style="padding: 12px; background: var(--bg-input); border-radius: 10px; margin-bottom: 10px;">
@@ -1630,7 +1593,6 @@
             });
         }
 
-        // Add Token to User
         async function addTokenToUser(userId, userName) {
             const { value: formValues } = await Swal.fire({
                 title: `Tambah Token ke ${userName}`,
@@ -1692,8 +1654,8 @@
                             text: data.message,
                             confirmButtonColor: '#8b5cf6'
                         });
-                        loadUsers(); // Refresh table
-                        loadLogs(); // Refresh logs
+                        loadUsers();
+                        loadLogs();
                     } else {
                         Swal.fire('Error', data.error, 'error');
                     }
@@ -1703,7 +1665,6 @@
             }
         }
 
-        // Delete Token from User
         async function deleteTokenFromUser(userId, userName, maxBalance) {
             if (maxBalance <= 0) {
                 Swal.fire({
@@ -1757,7 +1718,7 @@
                         return false;
                     }
                     return {
-                        tokens: -Math.abs(tokens), // Make it negative for deletion
+                        tokens: -Math.abs(tokens),
                         reason: document.getElementById('swal-reason').value
                     };
                 }
@@ -1771,7 +1732,6 @@
                         body: JSON.stringify(formValues)
                     });
                     const data = await res.json();
-
                     if (res.ok) {
                         Swal.fire({
                             icon: 'success',
@@ -1790,7 +1750,6 @@
             }
         }
 
-        // Load Admin Logs (Paginated)
         async function loadLogs(page = 1) {
             state.logs.page = page;
             const container = document.getElementById('logsTable');
@@ -1799,11 +1758,9 @@
             try {
                 const res = await fetch(`/api/admin/logs?page=${page}&limit=${state.logs.limit}&q=${encodeURIComponent(state.logs.q)}`);
                 const data = await res.json();
-                
                 if (!data || !data.logs || !data.pagination) {
                     throw new Error(data.error || 'Data format invalid');
                 }
-
                 const { logs, pagination } = data;
 
                 if (logs.length === 0 && page === 1 && !state.logs.q) {
@@ -1856,7 +1813,6 @@
             }
         }
 
-        // --- PACKAGE MANAGEMENT ---
         async function loadPackages() {
             try {
                 const res = await fetch('/api/admin/packages');
@@ -1936,7 +1892,6 @@
                     const name = document.getElementById('swal-pkg-name').value;
                     const tokens = document.getElementById('swal-pkg-tokens').value;
                     const price = document.getElementById('swal-pkg-price').value;
-
                     if (!name || !tokens || !price) {
                         Swal.showValidationMessage('Please fill all required fields');
                         return false;
@@ -2058,7 +2013,6 @@
                     const res = await fetch(`/api/admin/packages/${id}`, {
                         method: 'DELETE'
                     });
-
                     if (res.ok) {
                         Swal.fire('Deleted', 'Package deleted successfully', 'success');
                         loadPackages();
@@ -2071,10 +2025,8 @@
             }
         }
 
-        // --- SERVER STATS LOGIC ---
         async function loadServerStats() {
             const container = document.getElementById('serverStatsContainer');
-            // Show loading state if it's already populated
             if (container.querySelector('.stats-detail-grid')) {
                 container.style.opacity = '0.5';
             }
@@ -2092,8 +2044,6 @@
                 };
 
                 const memUsedPct = ((data.memory.used / data.memory.total) * 100).toFixed(1);
-                
-                // Clear loading state and reset opacity
                 container.classList.remove('loading');
                 container.style.opacity = '1';
 
@@ -2160,13 +2110,12 @@
             }
         }
 
-        // Initial Load
         loadUsers(1);
         loadVouchers();
         loadTransactions(1);
         loadLogs(1);
         loadPackages();
-        setInterval(() => loadLogs(state.logs.page), 60000); // Reload current logs page every 60s
+        setInterval(() => loadLogs(state.logs.page), 60000);
     </script>
 </body>
 

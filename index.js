@@ -1654,42 +1654,45 @@ function decodeToGoogleFormUrl(baseUrl, data, selections, iterationIndex = 0) {
         // If items.length is 0, skip
         if (items.length === 0) continue;
 
-        let selectedResult;
-
         if (isMultipleChoice) {
-            // For Checkboxes (Multiple Choice), we need a strategy.
-            // Strategy: Treat the list of items as a sequence of single selections?
-            // OR: Select ONE item per response sequentially?
-            // User asked for "Short Answer" context where each line is an answer.
-            // For Checkboxes, let's assume we pick ONE option per response sequentially too.
-            // Use modulo to loop
-            const index = iterationIndex % items.length;
-            selectedResult = items[index];
+            // For Checkboxes, use independent probability rolls for each option
+            const selectedItems = selectIndependentOptions(items);
 
-            console.log(`[DECIDER] Sequential Selection (Checkbox) [${iterationIndex}]: ${selectedResult.option}`);
-
-            if (hasOtherOption && selectedResult.isOtherOption) {
-                urlParams.append(name, '__other_option__');
-                urlParams.append(name + '.other_option_response', selectedResult.option);
-            } else {
-                urlParams.append(name, selectedResult.option);
+            if (selectedItems.length === 0) {
+                // FALLBACK: If no options rolled true, pick one weighted random to ensure the field isn't empty if required
+                // (Though usually for checkboxes, empty is allowed unless validated)
+                const fallback = selectWeightedRandomItem(items);
+                if (fallback && parseFloat(fallback.chance) > 0) {
+                    selectedItems.push(fallback);
+                }
             }
-            selections.push({ name, values: [selectedResult.option] });
+
+            selectedItems.forEach(item => {
+                if (hasOtherOption && item.isOtherOption) {
+                    urlParams.append(name, '__other_option__');
+                    urlParams.append(name + '.other_option_response', item.option);
+                } else {
+                    urlParams.append(name, item.option);
+                }
+            });
+            selections.push({ name, values: selectedItems.map(i => i.option) });
 
         } else {
-            // Short Answer / Radio / Dropdown
-            const index = iterationIndex % items.length;
-            selectedResult = items[index];
+            // For Single Choice (Radio, Dropdown, Linear Scale) or Short Answer variants
+            // Use Weighted Random selection based on 'chance'
+            selectedResult = selectWeightedRandomItem(items);
 
-            console.log(`[DECIDER] Sequential Selection [${iterationIndex}]: ${selectedResult.option} (isOther: ${selectedResult.isOtherOption})`);
+            if (selectedResult) {
+                console.log(`[DECIDER] Weighted Selection [${iterationIndex}]: ${selectedResult.option} (Prob: ${selectedResult.chance}%)`);
 
-            if (selectedResult.isOtherOption) {
-                urlParams.append(name, '__other_option__');
-                urlParams.append(name + '.other_option_response', selectedResult.option);
-            } else {
-                urlParams.append(name, selectedResult.option);
+                if (selectedResult.isOtherOption) {
+                    urlParams.append(name, '__other_option__');
+                    urlParams.append(name + '.other_option_response', selectedResult.option);
+                } else {
+                    urlParams.append(name, selectedResult.option);
+                }
+                selections.push({ name, values: [selectedResult.option] });
             }
-            selections.push({ name, values: [selectedResult.option] });
         }
     }
 

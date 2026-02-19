@@ -1,91 +1,83 @@
-const https = require('https');
-const fs = require('fs');
 
-const FORM_ID = '1FAIpQLSffPaS5ijUqYEcGf3biznBL2Udwqe6aio9jRG16JTD3WMYLHQ';
-// const URL_ID = 'e/1FAIpQLSffPaS5ijUqYEcGf3biznBL2Udwqe6aio9jRG16JTD3WMYLHQ';
-const HOST = 'docs.google.com';
-const PATH = `/forms/d/e/${FORM_ID}/formResponse`;
-
-// Page IDs: 0, 63316520, 582135968
-// Hidden Inputs: fbzx=1837909981325377179
-
-const makeRequest = (ph) => {
-    return new Promise((resolve) => {
-        // Page 0: 1152921546, 1515637797
-        // Page 1: 577699138, 476679252
-        // Page 2: 948531731, 718073519, 1323593743
-        // FBZX: -3343186019079660896 (Dynamic, but using hardcoded for now if valid, else need to fetch)
-
-        // Use the fbzx from the latest debug run
-        const fbzx = "-3343186019079660896";
-
-        let formData = `fvv=1&fbzx=${fbzx}&draftResponse=%5Bnull%2Cnull%2C%22${fbzx}%22%5D&continue=1`;
-
-        // Page 0 Data
-        formData += '&entry.1152921546=Test+Repro';
-        formData += '&entry.1515637797=Opsi+1';
-
-        // Page 1 Data
-        formData += '&entry.577699138=Opsi+1';
-        formData += '&entry.476679252=Opsi+1';
-
-        // Page 2 Data
-        formData += '&entry.948531731=Test+End';
-        formData += '&entry.718073519=Opsi+1';
-        formData += '&entry.1323593743=Opsi+1';
-
-        if (ph !== null) {
-            formData += '&pageHistory=' + encodeURIComponent(ph);
-        }
-
-        const options = {
-            hostname: HOST,
-            path: PATH,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Content-Length': Buffer.byteLength(formData),
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-        };
-
-        const req = https.request(options, (res) => {
-            let body = '';
-            res.on('data', chunk => body += chunk);
-            res.on('end', () => {
-                resolve({ statusCode: res.statusCode, body: body });
-            });
-        });
-
-        req.on('error', (e) => {
-            console.error(e);
-            resolve({ statusCode: 'ERROR', body: '' });
-        });
-
-        req.write(formData);
-        req.end();
-    });
-};
-
-(async () => {
-    const phs = [
-        "0,63316520,582135968", // Full history including current page
-        "0,63316520",           // History up to previous page
-        "0"                     // Start only
-    ];
-
-    const stream = fs.createWriteStream('repro_result_2.txt');
-    const log = (msg) => {
-        console.log(msg);
-        stream.write(msg + '\n');
-    };
-
-    for (const ph of phs) {
-        log(`\n--- Testing pageHistory: "${ph}" ---`);
-        const result = await makeRequest(ph);
-        log(`STATUS: ${result.statusCode}`);
-        if (result.statusCode !== 200) {
-            // log(`BODY: ${result.body.substring(0, 200)}...`);
+function selectIndependentOptions(optionsWithProbabilities) {
+    const selectedOptions = [];
+    for (const item of optionsWithProbabilities) {
+        const chance = parseFloat(item.chance);
+        const probability = chance > 1 ? chance / 100 : chance;
+        if (Math.random() < probability) {
+            selectedOptions.push(item);
         }
     }
-})();
+    return selectedOptions;
+}
+
+function selectWeightedRandomItem(optionsWithWeights) {
+    let totalWeight = 0;
+    for (const item of optionsWithWeights) {
+        totalWeight += parseFloat(item.chance);
+    }
+    if (totalWeight === 0) return optionsWithWeights[0];
+    const randomNumber = Math.random() * totalWeight;
+    let cumulativeWeight = 0;
+
+    for (const item of optionsWithWeights) {
+        cumulativeWeight += parseFloat(item.chance);
+        if (randomNumber < cumulativeWeight) {
+            return item;
+        }
+    }
+    return optionsWithWeights[optionsWithWeights.length - 1];
+}
+
+// Simulated decodeToGoogleFormUrl core logic
+function testDecider(isMultipleChoice, items, iterationIndex) {
+    let selections = [];
+    if (isMultipleChoice) {
+        const selectedItems = selectIndependentOptions(items);
+        if (selectedItems.length === 0) {
+            const fallback = selectWeightedRandomItem(items);
+            if (fallback && parseFloat(fallback.chance) > 0) {
+                selectedItems.push(fallback);
+            }
+        }
+        selections = selectedItems.map(i => i.option);
+    } else {
+        const selectedResult = selectWeightedRandomItem(items);
+        if (selectedResult) {
+            selections = [selectedResult.option];
+        }
+    }
+    return selections;
+}
+
+// Test Case 1: Single Choice (Radio/Linear Scale)
+const itemsSingle = [
+    { option: '1', chance: 0 },
+    { option: '2', chance: 100 },
+    { option: '3', chance: 0 }
+];
+
+console.log("Testing Single Choice (100% on option '2'):");
+let results = [];
+for (let i = 0; i < 100; i++) {
+    results.push(testDecider(false, itemsSingle, i)[0]);
+}
+const counts = results.reduce((acc, val) => { acc[val] = (acc[val] || 0) + 1; return acc; }, {});
+console.log(counts);
+
+// Test Case 2: Checkboxes
+const itemsMulti = [
+    { option: 'A', chance: 100 },
+    { option: 'B', chance: 0 },
+    { option: 'C', chance: 100 }
+];
+
+console.log("\nTesting Checkboxes (100% on 'A' and 'C', 0% on 'B'):");
+let multiResults = [];
+for (let i = 0; i < 100; i++) {
+    multiResults.push(testDecider(true, itemsMulti, i));
+}
+const bSelected = multiResults.filter(r => r.includes('B')).length;
+const aSelected = multiResults.filter(r => r.includes('A')).length;
+const cSelected = multiResults.filter(r => r.includes('C')).length;
+console.log(`Results: A=${aSelected}, B=${bSelected}, C=${cSelected}`);
