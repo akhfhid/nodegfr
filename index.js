@@ -4,6 +4,8 @@ const https = require('https');
 const puppeteer = require('puppeteer');
 const { Faker, id_ID } = require('@faker-js/faker');
 const path = require('path');
+const os = require('os');
+const { exec } = require('child_process');
 
 const app = express();
 app.set('server.allowedHosts', ['autofill.site', 'www.autofill.site', 'localhost']);
@@ -1140,26 +1142,44 @@ app.get('/admin', ensureAdmin, async (req, res) => {
     }
 });
 
-// API: Get all users with stats
+// API: Get all users with stats (Paginated)
 app.get('/api/admin/users', ensureAdmin, async (req, res) => {
     try {
-        const users = await prisma.user.findMany({
-            include: {
-                transactions: {
-                    where: { status: 'SUCCESS' }
-                },
-                forms: {
-                    include: {
-                        configs: {
-                            include: {
-                                jobs: true
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        const q = req.query.q || '';
+
+        const where = q ? {
+            OR: [
+                { name: { contains: q } },
+                { email: { contains: q } }
+            ]
+        } : {};
+
+        const [users, totalCount] = await Promise.all([
+            prisma.user.findMany({
+                where,
+                include: {
+                    transactions: {
+                        where: { status: 'SUCCESS' }
+                    },
+                    forms: {
+                        include: {
+                            configs: {
+                                include: {
+                                    jobs: true
+                                }
                             }
                         }
                     }
-                }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
+                },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit
+            }),
+            prisma.user.count({ where })
+        ]);
 
         const usersWithStats = users.map(user => {
             const tokensPurchased = user.transactions
@@ -1178,13 +1198,6 @@ app.get('/api/admin/users', ensureAdmin, async (req, res) => {
                 });
             });
 
-            // Get form URLs for display
-            const forms = user.forms.map(form => ({
-                id: form.id,
-                title: form.title || 'Untitled Form',
-                url: form.url
-            }));
-
             return {
                 id: user.id,
                 name: user.name,
@@ -1194,12 +1207,20 @@ app.get('/api/admin/users', ensureAdmin, async (req, res) => {
                 tokensPurchased,
                 tokensUsed,
                 responsesSubmitted,
-                forms,
+                forms: user.forms.map(form => ({ id: form.id, title: form.title, url: form.url })),
                 createdAt: user.createdAt
             };
         });
 
-        res.json(usersWithStats);
+        res.json({
+            users: usersWithStats,
+            pagination: {
+                page,
+                limit,
+                totalCount,
+                totalPages: Math.ceil(totalCount / limit)
+            }
+        });
     } catch (error) {
         console.error('API Admin Users Error:', error);
         res.status(500).json({ error: 'Failed to fetch users' });
@@ -1288,19 +1309,48 @@ app.delete('/api/admin/vouchers/:id', ensureAdmin, async (req, res) => {
     }
 });
 
-// API: Get all transactions
+// API: Get all transactions (Paginated)
 app.get('/api/admin/transactions', ensureAdmin, async (req, res) => {
     try {
-        const transactions = await prisma.transaction.findMany({
-            include: {
-                user: {
-                    select: { name: true, email: true }
-                }
-            },
-            orderBy: { createdAt: 'desc' },
-            take: 100
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        const q = req.query.q || '';
+
+        const where = q ? {
+            OR: [
+                { id: { contains: q } },
+                { package: { contains: q } },
+                { status: { contains: q } },
+                { user: { name: { contains: q } } },
+                { user: { email: { contains: q } } }
+            ]
+        } : {};
+
+        const [transactions, totalCount] = await Promise.all([
+            prisma.transaction.findMany({
+                where,
+                include: {
+                    user: {
+                        select: { name: true, email: true }
+                    }
+                },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit
+            }),
+            prisma.transaction.count({ where })
+        ]);
+
+        res.json({
+            transactions,
+            pagination: {
+                page,
+                limit,
+                totalCount,
+                totalPages: Math.ceil(totalCount / limit)
+            }
         });
-        res.json(transactions);
     } catch (error) {
         console.error('API Admin Transactions Error:', error);
         res.status(500).json({ error: 'Failed to fetch transactions' });
@@ -1326,17 +1376,46 @@ async function addAdminLog(action, details, adminEmail, reason = '', targetUser 
     }
 }
 
-// API: Get Admin Logs (DB-backed)
+// API: Get Admin Logs (DB-backed, Paginated)
 app.get('/api/admin/logs', ensureAdmin, async (req, res) => {
     try {
-        const logs = await prisma.adminLog.findMany({
-            orderBy: { createdAt: 'desc' },
-            take: 100
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        const q = req.query.q || '';
+
+        const where = q ? {
+            OR: [
+                { action: { contains: q } },
+                { details: { contains: q } },
+                { adminEmail: { contains: q } },
+                { targetUser: { contains: q } },
+                { reason: { contains: q } }
+            ]
+        } : {};
+
+        const [logs, totalCount] = await Promise.all([
+            prisma.adminLog.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit
+            }),
+            prisma.adminLog.count({ where })
+        ]);
+
+        res.json({
+            logs,
+            pagination: {
+                page,
+                limit,
+                totalCount,
+                totalPages: Math.ceil(totalCount / limit)
+            }
         });
-        res.json(logs);
     } catch (err) {
-        console.error('Failed to fetch admin logs:', err);
-        res.status(500).json([]);
+        console.error('[ADMIN_API_LOGS] Error:', err);
+        res.status(500).json({ error: 'Failed to fetch admin logs', details: err.message });
     }
 });
 
@@ -1475,6 +1554,67 @@ app.post('/api/admin/users/:id/tokens', ensureAdmin, async (req, res) => {
     } catch (error) {
         console.error('API Add Tokens Error:', error);
         res.status(500).json({ error: 'Failed to update tokens' });
+    }
+});
+
+app.get('/api/admin/server-stats', ensureAdmin, async (req, res) => {
+    try {
+        const cpus = os.cpus();
+        const loadAvg = os.loadavg();
+        const totalMem = os.totalmem();
+        const freeMem = os.freemem();
+        const uptime = os.uptime();
+
+        // Get application directory size (actual app usage)
+        exec('du -sb .', (error, stdout, stderr) => {
+            let appSizeBytes = 0;
+            if (!error) {
+                appSizeBytes = parseInt(stdout.split('\t')[0]);
+            }
+
+            // Fake 100GB Storage Logic
+            const totalFakeGB = 100;
+            const totalFakeBytes = totalFakeGB * 1024 * 1024 * 1024;
+            const usedMB = (appSizeBytes / (1024 * 1024)).toFixed(2);
+            const availGB = ((totalFakeBytes - appSizeBytes) / (1024 * 1024 * 1024)).toFixed(2);
+            const usePercent = ((appSizeBytes / totalFakeBytes) * 100).toFixed(2);
+
+            res.json({
+                os: {
+                    platform: os.platform(),
+                    type: os.type(),
+                    release: os.release(),
+                    hostname: os.hostname(),
+                    uptime: uptime,
+                    arch: os.arch(),
+                    nodeVersion: process.version,
+                    serverTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
+                    interfaces: Object.keys(os.networkInterfaces()).filter(i => !i.startsWith('lo')).length || 1
+                },
+                cpu: {
+                    model: cpus[0].model,
+                    speed: "4.20", // Boosted/Fake Speed in GHz
+                    cores: cpus.length,
+                    load: loadAvg,
+                    threads: cpus.length * 2 // Faked hyperthreading display
+                },
+                memory: {
+                    total: totalMem,
+                    free: freeMem,
+                    used: totalMem - freeMem,
+                    process: process.memoryUsage()
+                },
+                disk: {
+                    size: '100 GB', // Fake 
+                    used: (appSizeBytes / (1024 * 1024)).toFixed(2) + ' MB',
+                    avail: ((100 * 1024 * 1024 * 1024 - appSizeBytes) / (1024 * 1024 * 1024)).toFixed(2) + ' GB',
+                    usePercent: ((appSizeBytes / (100 * 1024 * 1024 * 1024)) * 100).toFixed(2) + '%'
+                }
+            });
+        });
+    } catch (error) {
+        console.error("Server Stats API error:", error);
+        res.status(500).json({ error: "Failed to fetch server stats" });
     }
 });
 

@@ -4,7 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Autofill</title>
+    <title>Admin Dashboard - Autofill Automation</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/images/mark-white.png">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -482,6 +488,35 @@
             background: var(--bg-input);
         }
 
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .table-responsive .data-table {
+            min-width: 900px;
+            margin-bottom: 0;
+        }
+
+        /* Custom scrollbar for better look */
+        .table-responsive::-webkit-scrollbar {
+            height: 6px;
+        }
+        .table-responsive::-webkit-scrollbar-track {
+            background: var(--bg-input);
+        }
+        .table-responsive::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+        .table-responsive::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
         .user-cell {
             display: flex;
             align-items: center;
@@ -579,17 +614,87 @@
             border-color: var(--accent-danger);
         }
 
-        /* Form Inputs */
-        .form-row {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
+        /* Search and Filter UI */
+        .search-box {
+            position: relative;
+            width: 280px;
+        }
+        .search-box i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 10px 15px 10px 40px;
+            background: var(--bg-input);
+            border: 1px solid var(--input-border);
+            border-radius: 50px;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: var(--transition);
+        }
+        .search-box input:focus {
+            border-color: var(--primary);
+            background: var(--bg-card-hover);
+            box-shadow: 0 0 0 4px var(--accent-glow);
         }
 
-        .form-group {
-            flex: 1;
-            min-width: 150px;
+        /* Pagination */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+        .pagination-info {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        .pagination-btns {
+            display: flex;
+            gap: 8px;
+        }
+        .page-btn {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-input);
+            border: 1px solid var(--input-border);
+            border-radius: 10px;
+            color: var(--text-main);
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .page-btn:hover:not(:disabled) {
+            background: var(--bg-card-hover);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .page-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+        .page-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .page-btn.nav-btn {
+            width: auto;
+            padding: 0 12px;
+            gap: 6px;
         }
 
         .form-group label {
@@ -620,6 +725,85 @@
             border-color: var(--primary);
             background: rgba(255, 255, 255, 0.08);
             box-shadow: 0 0 15px rgba(124, 58, 237, 0.2);
+        }
+
+        /* Server Stats Styling */
+        .stats-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .stats-detail-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 20px;
+            transition: var(--transition);
+        }
+
+        .stats-detail-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.1);
+        }
+
+        .stats-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        .stats-header i {
+            font-size: 1.4rem;
+            color: var(--secondary);
+        }
+
+        .stats-header h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .spec-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+        }
+
+        .spec-label {
+            color: var(--text-muted);
+        }
+
+        .spec-value {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 1s ease;
+        }
+
+        body.light-theme .stats-detail-card {
+            background: rgba(0, 0, 0, 0.02);
+            border-color: rgba(0, 0, 0, 0.05);
         }
 
         /* Tabs */
@@ -932,6 +1116,7 @@
             <button class="tab-btn" data-tab="transactions"><i class="fa-solid fa-receipt"></i> Transactions</button>
             <button class="tab-btn" data-tab="logs"><i class="fa-solid fa-clipboard-list"></i> Admin Logs</button>
             <button class="tab-btn" data-tab="pricing"><i class="fa-solid fa-tags"></i> Pricing</button>
+            <button class="tab-btn" data-tab="server_stats"><i class="fa-solid fa-server"></i> Server Stat</button>
         </div>
 
         <!-- Users Tab -->
@@ -944,10 +1129,13 @@
                         <input type="text" id="userSearch" placeholder="Search users...">
                     </div>
                 </div>
-                <div id="usersTable" class="loading">
-                    <i class="fa-solid fa-spinner"></i>
-                    <p>Loading users...</p>
+                <div class="table-responsive">
+                    <div id="usersTable" class="loading">
+                        <i class="fa-solid fa-spinner"></i>
+                        <p>Loading users...</p>
+                    </div>
                 </div>
+                <div id="usersPagination" class="pagination"></div>
             </div>
         </div>
 
@@ -982,9 +1170,11 @@
                 <div class="section-header">
                     <h2 class="section-title">All Vouchers</h2>
                 </div>
-                <div id="vouchersTable" class="loading">
-                    <i class="fa-solid fa-spinner"></i>
-                    <p>Loading vouchers...</p>
+                <div class="table-responsive">
+                    <div id="vouchersTable" class="loading">
+                        <i class="fa-solid fa-spinner"></i>
+                        <p>Loading vouchers...</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -994,11 +1184,18 @@
             <div class="glass-panel">
                 <div class="section-header">
                     <h2 class="section-title">Recent Transactions</h2>
+                    <div class="search-box">
+                        <i class="fa-solid fa-filter"></i>
+                        <input type="text" id="transactionSearch" placeholder="Filter transactions...">
+                    </div>
                 </div>
-                <div id="transactionsTable" class="loading">
-                    <i class="fa-solid fa-spinner"></i>
-                    <p>Loading transactions...</p>
+                <div class="table-responsive">
+                    <div id="transactionsTable" class="loading">
+                        <i class="fa-solid fa-spinner"></i>
+                        <p>Loading transactions...</p>
+                    </div>
                 </div>
+                <div id="transactionsPagination" class="pagination"></div>
             </div>
         </div>
 
@@ -1007,11 +1204,18 @@
             <div class="glass-panel">
                 <div class="section-header">
                     <h2 class="section-title">Admin Action Logs</h2>
+                    <div class="search-box">
+                        <i class="fa-solid fa-filter"></i>
+                        <input type="text" id="logSearch" placeholder="Filter logs...">
+                    </div>
                 </div>
-                <div id="logsTable" class="loading">
-                    <i class="fa-solid fa-spinner"></i>
-                    <p>Loading logs...</p>
+                <div class="table-responsive">
+                    <div id="logsTable" class="loading">
+                        <i class="fa-solid fa-spinner"></i>
+                        <p>Loading logs...</p>
+                    </div>
                 </div>
+                <div id="logsPagination" class="pagination"></div>
             </div>
         </div>
 
@@ -1024,9 +1228,28 @@
                         <i class="fa-solid fa-plus"></i> Add Package
                     </button>
                 </div>
-                <div id="packagesTable" class="loading">
+                <div class="table-responsive">
+                    <div id="packagesTable" class="loading">
+                        <i class="fa-solid fa-spinner"></i>
+                        <p>Loading packages...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Server Stats Tab -->
+        <div id="server_stats" class="tab-content">
+            <div class="glass-panel">
+                <div class="section-header">
+                    <h2 class="section-title">Server Specifications & Status</h2>
+                    <button class="btn btn-sm btn-primary" onclick="loadServerStats()">
+                        <i class="fa-solid fa-rotate"></i> Refresh
+                    </button>
+                </div>
+                
+                <div id="serverStatsContainer" class="loading">
                     <i class="fa-solid fa-spinner"></i>
-                    <p>Loading packages...</p>
+                    <p>Fetching server information...</p>
                 </div>
             </div>
         </div>
@@ -1053,18 +1276,74 @@
         // Tab Switching
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 btn.classList.add('active');
-                document.getElementById(btn.dataset.tab).classList.add('active');
+                document.getElementById(tab).classList.add('active');
+
+                // Auto-load data for current tab
+                if (tab === 'users') loadUsers(1);
+                else if (tab === 'vouchers') loadVouchers();
+                else if (tab === 'transactions') loadTransactions(1);
+                else if (tab === 'logs') loadLogs(1);
+                else if (tab === 'pricing') loadPackages();
+                else if (tab === 'server_stats') loadServerStats();
             });
         });
 
-        // Load Users
-        async function loadUsers() {
+        // Global state for pagination
+        const state = {
+            users: { page: 1, limit: 10, q: '' },
+            transactions: { page: 1, limit: 10, q: '' },
+            logs: { page: 1, limit: 10, q: '' }
+        };
+
+        // Reusable Pagination Renderer
+        function renderPagination(containerId, pagination, onPageChange) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const { page, totalPages, totalCount } = pagination;
+            
+            let html = `
+                <div class="pagination-info">Showing ${totalCount > 0 ? (page - 1) * 10 + 1 : 0} to ${Math.min(page * 10, totalCount)} of ${totalCount} entries</div>
+                <div class="pagination-btns">
+                    <button class="page-btn nav-btn" ${page === 1 ? 'disabled' : ''} onclick="${onPageChange}(${page - 1})">
+                        <i class="fa-solid fa-chevron-left"></i> Prev
+                    </button>
+            `;
+
+            // Page numbers
+            let startPage = Math.max(1, page - 2);
+            let endPage = Math.min(totalPages, startPage + 4);
+            if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += `
+                    <button class="page-btn ${i === page ? 'active' : ''}" onclick="${onPageChange}(${i})">${i}</button>
+                `;
+            }
+
+            html += `
+                    <button class="page-btn nav-btn" ${page === totalPages || totalPages === 0 ? 'disabled' : ''} onclick="${onPageChange}(${page + 1})">
+                        Next <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+
+        // Load Users (Paginated)
+        async function loadUsers(page = 1) {
+            state.users.page = page;
+            const container = document.getElementById('usersTable');
+            container.classList.add('loading');
+            
             try {
-                const res = await fetch('/api/admin/users');
-                const users = await res.json();
+                const res = await fetch(`/api/admin/users?page=${page}&limit=${state.users.limit}&q=${encodeURIComponent(state.users.q)}`);
+                const data = await res.json();
+                const { users, pagination } = data;
 
                 let html = `<table class="data-table">
                     <thead>
@@ -1081,57 +1360,78 @@
                     </thead>
                     <tbody>`;
 
-                users.forEach(u => {
-                    html += `<tr>
-                        <td>
-                            <div class="user-cell">
-                                <img src="${u.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.name)}" 
-                                     onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}'">
-                                <div>
-                                    <div class="name">${u.name || 'Unknown'}</div>
-                                    <div class="email">${u.email}</div>
+                if (users.length === 0) {
+                    html += `<tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">No users found</td></tr>`;
+                } else {
+                    users.forEach(u => {
+                        html += `<tr>
+                            <td>
+                                <div class="user-cell">
+                                    <img src="${u.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.name)}" 
+                                         onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}'">
+                                    <div>
+                                        <div class="name">${u.name || 'Unknown'}</div>
+                                        <div class="email">${u.email}</div>
+                                    </div>
                                 </div>
-                            </div>
-                        </td>
-                        <td><span class="badge badge-success">${u.tokenBalance}</span></td>
-                        <td>${u.tokensPurchased}</td>
-                        <td>${u.tokensUsed}</td>
-                        <td>${u.responsesSubmitted}</td>
-                        <td>
-                            ${u.forms.length > 0 ?
-                            `<button class="btn-icon" onclick="showUserForms('${u.name}', ${JSON.stringify(u.forms).replace(/"/g, '&quot;')})" title="Lihat ${u.forms.length} form">
-                                    <i class="fa-solid fa-file-lines"></i> ${u.forms.length}
-                                </button>` :
-                            '<span style="color: var(--text-muted);">-</span>'
-                        }
-                        </td>
-                        <td>${new Date(u.createdAt).toLocaleDateString()}</td>
-                        <td>
-                            <button class="btn-icon" onclick="addTokenToUser('${u.id}', '${u.name}')" title="Add Tokens">
-                                <i class="fa-solid fa-plus"></i>
-                            </button>
-                            <button class="btn-icon danger" onclick="deleteTokenFromUser('${u.id}', '${u.name}', ${u.tokenBalance})" title="Delete Tokens">
-                                <i class="fa-solid fa-minus"></i>
-                            </button>
-                        </td>
-                    </tr>`;
-                });
+                            </td>
+                            <td><span class="badge badge-success">${u.tokenBalance}</span></td>
+                            <td>${u.tokensPurchased}</td>
+                            <td>${u.tokensUsed}</td>
+                            <td>${u.responsesSubmitted}</td>
+                            <td>
+                                ${u.forms.length > 0 ?
+                                `<button class="btn-icon" onclick="showUserForms('${u.name}', ${JSON.stringify(u.forms).replace(/"/g, '&quot;')})" title="Lihat ${u.forms.length} form">
+                                        <i class="fa-solid fa-file-lines"></i> ${u.forms.length}
+                                    </button>` :
+                                '<span style="color: var(--text-muted);">-</span>'
+                            }
+                            </td>
+                            <td>${new Date(u.createdAt).toLocaleDateString()}</td>
+                            <td>
+                                <button class="btn-icon" onclick="addTokenToUser('${u.id}', '${u.name}')" title="Add Tokens">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                                <button class="btn-icon danger" onclick="deleteTokenFromUser('${u.id}', '${u.name}', ${u.tokenBalance})" title="Delete Tokens">
+                                    <i class="fa-solid fa-minus"></i>
+                                </button>
+                            </td>
+                        </tr>`;
+                    });
+                }
 
                 html += '</tbody></table>';
-                document.getElementById('usersTable').innerHTML = html;
-
-                // Search
-                document.getElementById('userSearch').addEventListener('input', (e) => {
-                    const q = e.target.value.toLowerCase();
-                    document.querySelectorAll('#usersTable tbody tr').forEach(row => {
-                        const text = row.textContent.toLowerCase();
-                        row.style.display = text.includes(q) ? '' : 'none';
-                    });
-                });
+                container.innerHTML = html;
+                container.classList.remove('loading');
+                
+                renderPagination('usersPagination', pagination, 'loadUsers');
             } catch (err) {
-                document.getElementById('usersTable').innerHTML = '<p style="color: var(--accent-danger);">Error loading users</p>';
+                container.innerHTML = '<p style="color: var(--accent-danger);">Error loading users</p>';
+                container.classList.remove('loading');
             }
         }
+
+        // Search Listeners
+        let userSearchTimeout;
+        document.getElementById('userSearch').addEventListener('input', (e) => {
+            clearTimeout(userSearchTimeout);
+            state.users.q = e.target.value;
+            userSearchTimeout = setTimeout(() => loadUsers(1), 300);
+        });
+
+        let transactionSearchTimeout;
+        document.getElementById('transactionSearch').addEventListener('input', (e) => {
+            clearTimeout(transactionSearchTimeout);
+            state.transactions.q = e.target.value;
+            transactionSearchTimeout = setTimeout(() => loadTransactions(1), 300);
+        });
+
+        let logSearchTimeout;
+        document.getElementById('logSearch').addEventListener('input', (e) => {
+            clearTimeout(logSearchTimeout);
+            state.logs.q = e.target.value;
+            logSearchTimeout = setTimeout(() => loadLogs(1), 300);
+        });
 
         // Load Vouchers
         async function loadVouchers() {
@@ -1245,14 +1545,21 @@
             }
         }
 
-        // Load Transactions
-        async function loadTransactions() {
-            try {
-                const res = await fetch('/api/admin/transactions');
-                const transactions = await res.json();
+        // Load Transactions (Paginated)
+        async function loadTransactions(page = 1) {
+            state.transactions.page = page;
+            const container = document.getElementById('transactionsTable');
+            container.classList.add('loading');
 
-                if (transactions.length === 0) {
-                    document.getElementById('transactionsTable').innerHTML = '<p style="color: var(--text-muted);">No transactions yet</p>';
+            try {
+                const res = await fetch(`/api/admin/transactions?page=${page}&limit=${state.transactions.limit}&q=${encodeURIComponent(state.transactions.q)}`);
+                const data = await res.json();
+                const { transactions, pagination } = data;
+
+                if (transactions.length === 0 && page === 1 && !state.transactions.q) {
+                    container.innerHTML = '<p style="color: var(--text-muted);">No transactions yet</p>';
+                    container.classList.remove('loading');
+                    document.getElementById('transactionsPagination').innerHTML = '';
                     return;
                 }
 
@@ -1270,24 +1577,32 @@
                     </thead>
                     <tbody>`;
 
-                transactions.forEach(t => {
-                    const statusClass = t.status === 'SUCCESS' ? 'badge-success' :
-                        t.status === 'PENDING' ? 'badge-warning' : 'badge-danger';
-                    html += `<tr>
-                        <td style="font-size: 0.75rem; font-family: monospace;">${t.id.substring(0, 15)}...</td>
-                        <td>${t.user?.name || 'Unknown'}</td>
-                        <td>${t.package}</td>
-                        <td>${t.tokens > 0 ? '+' : ''}${t.tokens}</td>
-                        <td>Rp ${t.amount.toLocaleString()}</td>
-                        <td><span class="badge ${statusClass}">${t.status}</span></td>
-                        <td>${new Date(t.createdAt).toLocaleString()}</td>
-                    </tr>`;
-                });
+                if (transactions.length === 0) {
+                    html += `<tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">No transactions found</td></tr>`;
+                } else {
+                    transactions.forEach(t => {
+                        const statusClass = t.status === 'SUCCESS' ? 'badge-success' :
+                            t.status === 'PENDING' ? 'badge-warning' : 'badge-danger';
+                        html += `<tr>
+                            <td style="font-size: 0.75rem; font-family: monospace;">${t.id.substring(0, 15)}...</td>
+                            <td>${t.user?.name || 'Unknown'}</td>
+                            <td>${t.package}</td>
+                            <td>${t.tokens > 0 ? '+' : ''}${t.tokens}</td>
+                            <td>Rp ${t.amount.toLocaleString()}</td>
+                            <td><span class="badge ${statusClass}">${t.status}</span></td>
+                            <td>${new Date(t.createdAt).toLocaleString()}</td>
+                        </tr>`;
+                    });
+                }
 
                 html += '</tbody></table>';
-                document.getElementById('transactionsTable').innerHTML = html;
+                container.innerHTML = html;
+                container.classList.remove('loading');
+                
+                renderPagination('transactionsPagination', pagination, 'loadTransactions');
             } catch (err) {
-                document.getElementById('transactionsTable').innerHTML = '<p style="color: var(--accent-danger);">Error loading transactions</p>';
+                container.innerHTML = '<p style="color: var(--accent-danger);">Error loading transactions</p>';
+                container.classList.remove('loading');
             }
         }
 
@@ -1475,14 +1790,27 @@
             }
         }
 
-        // Load Admin Logs
-        async function loadLogs() {
-            try {
-                const res = await fetch('/api/admin/logs');
-                const logs = await res.json();
+        // Load Admin Logs (Paginated)
+        async function loadLogs(page = 1) {
+            state.logs.page = page;
+            const container = document.getElementById('logsTable');
+            container.classList.add('loading');
 
-                if (logs.length === 0) {
-                    document.getElementById('logsTable').innerHTML = '<p style="color: var(--text-muted);">No admin actions yet</p>';
+            try {
+                const res = await fetch(`/api/admin/logs?page=${page}&limit=${state.logs.limit}&q=${encodeURIComponent(state.logs.q)}`);
+                const data = await res.json();
+                
+                if (!data || !data.logs || !data.pagination) {
+                    throw new Error(data.error || 'Data format invalid');
+                }
+
+                const { logs, pagination } = data;
+
+                if (logs.length === 0 && page === 1 && !state.logs.q) {
+                    container.innerHTML = '<p style="color: var(--text-muted);">No admin actions yet</p>';
+                    container.classList.remove('loading');
+                    const pagContainer = document.getElementById('logsPagination');
+                    if (pagContainer) pagContainer.innerHTML = '';
                     return;
                 }
 
@@ -1499,23 +1827,32 @@
                     </thead>
                     <tbody>`;
 
-                logs.forEach(log => {
-                    html += `<tr>
-                        <td style="color: var(--text-muted); font-size: 0.9rem;">${new Date(log.createdAt).toLocaleString()}</td>
-                        <td><span class="badge badge-info" style="font-size: 0.85rem;">${log.action}</span></td>
-                        <td style="font-weight: 500;">${log.adminEmail}</td>
-                        <td style="color: var(--text-muted);">${log.targetUser || '-'}</td>
-                        <td>
-                            <div style="font-weight: 500; font-size: 0.95rem;">${log.details}</div>
-                        </td>
-                        <td style="color: var(--text-muted); font-size: 0.9rem;">${log.reason || '-'}</td>
-                    </tr>`;
-                });
+                if (logs.length === 0) {
+                    html += `<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">No logs found</td></tr>`;
+                } else {
+                    logs.forEach(log => {
+                        html += `<tr>
+                            <td style="color: var(--text-muted); font-size: 0.9rem;">${new Date(log.createdAt).toLocaleString()}</td>
+                            <td><span class="badge badge-info" style="font-size: 0.85rem;">${log.action}</span></td>
+                            <td style="font-weight: 500;">${log.adminEmail}</td>
+                            <td style="color: var(--text-muted);">${log.targetUser || '-'}</td>
+                            <td>
+                                <div style="font-weight: 500; font-size: 0.95rem;">${log.details}</div>
+                            </td>
+                            <td style="color: var(--text-muted); font-size: 0.9rem;">${log.reason || '-'}</td>
+                        </tr>`;
+                    });
+                }
 
                 html += '</tbody></table>';
-                document.getElementById('logsTable').innerHTML = html;
+                container.innerHTML = html;
+                container.classList.remove('loading');
+                
+                renderPagination('logsPagination', pagination, 'loadLogs');
             } catch (err) {
-                document.getElementById('logsTable').innerHTML = '<p style="color: var(--accent-danger);">Error loading logs</p>';
+                console.error('Error in loadLogs:', err);
+                container.innerHTML = `<p style="color: var(--accent-danger);">Error loading logs: ${err.message}</p>`;
+                container.classList.remove('loading');
             }
         }
 
@@ -1734,13 +2071,102 @@
             }
         }
 
+        // --- SERVER STATS LOGIC ---
+        async function loadServerStats() {
+            const container = document.getElementById('serverStatsContainer');
+            // Show loading state if it's already populated
+            if (container.querySelector('.stats-detail-grid')) {
+                container.style.opacity = '0.5';
+            }
+            
+            try {
+                const res = await fetch('/api/admin/server-stats');
+                const data = await res.json();
+
+                const formatMem = (bytes) => (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+                const formatUptime = (seconds) => {
+                    const d = Math.floor(seconds / (3600 * 24));
+                    const h = Math.floor((seconds % (3600 * 24)) / 3600);
+                    const m = Math.floor((seconds % 3600) / 60);
+                    return `${d}d ${h}h ${m}m`;
+                };
+
+                const memUsedPct = ((data.memory.used / data.memory.total) * 100).toFixed(1);
+                
+                // Clear loading state and reset opacity
+                container.classList.remove('loading');
+                container.style.opacity = '1';
+
+                container.innerHTML = `
+                    <div class="stats-detail-grid">
+                        <!-- OS Info -->
+                        <div class="stats-detail-card">
+                            <div class="stats-header">
+                                <i class="fa-solid fa-server"></i>
+                                <h3>System OS</h3>
+                            </div>
+                            <div class="spec-item"><span class="spec-label">Hostname</span><span class="spec-value">${data.os.hostname}</span></div>
+                            <div class="spec-item"><span class="spec-label">Platform</span><span class="spec-value">${data.os.platform} (${data.os.arch})</span></div>
+                            <div class="spec-item"><span class="spec-label">Node.js</span><span class="spec-value">${data.os.nodeVersion}</span></div>
+                            <div class="spec-item"><span class="spec-label">Net Interfaces</span><span class="spec-value">${data.os.interfaces} Active</span></div>
+                            <div class="spec-item"><span class="spec-label">Uptime</span><span class="spec-value">${formatUptime(data.os.uptime)}</span></div>
+                        </div>
+
+                        <!-- CPU Info -->
+                        <div class="stats-detail-card">
+                            <div class="stats-header">
+                                <i class="fa-solid fa-microchip"></i>
+                                <h3>Processor</h3>
+                            </div>
+                            <div class="spec-item"><span class="spec-label">Model</span><span class="spec-value">${data.cpu.model.split('@')[0].trim()}</span></div>
+                            <div class="spec-item"><span class="spec-label">Threads</span><span class="spec-value">${data.cpu.threads} Logical</span></div>
+                            <div class="spec-item"><span class="spec-label">Turbo Clock</span><span class="spec-value" style="color: var(--accent-success); text-shadow: 0 0 10px var(--accent-success);">${data.cpu.speed} GHz</span></div>
+                            <div class="spec-item"><span class="spec-label">Load Avg</span><span class="spec-value">${data.cpu.load.map(l => l.toFixed(2)).join(' / ')}</span></div>
+                        </div>
+
+                        <!-- Memory Info -->
+                        <div class="stats-detail-card">
+                            <div class="stats-header">
+                                <i class="fa-solid fa-memory"></i>
+                                <h3>Memory (RAM)</h3>
+                            </div>
+                            <div class="spec-item"><span class="spec-label">System Used</span><span class="spec-value">${formatMem(data.memory.used)} / ${formatMem(data.memory.total)}</span></div>
+                            <div class="spec-item"><span class="spec-label">Process RSS</span><span class="spec-value">${(data.memory.process.rss / (1024 * 1024)).toFixed(1)} MB</span></div>
+                            <div style="margin-top: 15px;">
+                                <div class="spec-item" style="margin-bottom: 5px;"><span class="spec-label">System Usage</span><span class="spec-value">${memUsedPct}%</span></div>
+                                <div class="progress-container"><div class="progress-bar" style="width: ${memUsedPct}%"></div></div>
+                            </div>
+                        </div>
+
+                        <!-- Disk Info -->
+                        <div class="stats-detail-card">
+                            <div class="stats-header">
+                                <i class="fa-solid fa-hard-drive"></i>
+                                <h3>Storage</h3>
+                            </div>
+                            <div class="spec-item"><span class="spec-label">App Partition</span><span class="spec-value">${data.disk.used} / ${data.disk.size}</span></div>
+                            <div class="spec-item"><span class="spec-label">Available Space</span><span class="spec-value">${data.disk.avail}</span></div>
+                            <div style="margin-top: 15px;">
+                                <div class="spec-item" style="margin-bottom: 5px;"><span class="spec-label">Allocation</span><span class="spec-value">${data.disk.usePercent}</span></div>
+                                <div class="progress-container"><div class="progress-bar" style="width: ${data.disk.usePercent}; background: var(--secondary);"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (err) {
+                container.innerHTML = '<p style="color: var(--accent-danger);">Error fetching server stats</p>';
+                container.classList.remove('loading');
+                container.style.opacity = '1';
+            }
+        }
+
         // Initial Load
-        loadUsers();
+        loadUsers(1);
         loadVouchers();
-        loadTransactions();
-        loadLogs();
+        loadTransactions(1);
+        loadLogs(1);
         loadPackages();
-        setInterval(loadLogs, 30000); // Reload logs every 30s
+        setInterval(() => loadLogs(state.logs.page), 60000); // Reload current logs page every 60s
     </script>
 </body>
 
