@@ -1591,9 +1591,6 @@
                 <form id="executeForm" action="/execute-links" method="POST">
                   <div id="hiddenUrlInputs"></div>
                   <input type="hidden" name="configId" id="configIdInput">
-                  <input type="hidden" name="pageHistoryStr" id="pageHistoryStrInput">
-                  <input type="hidden" name="fbzx" id="fbzxInput">
-                  <input type="hidden" name="pageMapping" id="pageMappingInput">
 
                   <!-- MAIN ACTION -->
                   <button type="submit" class="submit-btn submit-btn-full"
@@ -1918,20 +1915,8 @@
                 if (cInput) cInput.value = data.configId;
               }
               
-              if (data.pageHistoryStr) {
-                  const phInput = document.getElementById('pageHistoryStrInput');
-                  if (phInput) phInput.value = data.pageHistoryStr;
-              }
+              // Backup logic for delay/threads from footer handled below...
 
-              if (data.fbzx) {
-                  const fbzxInput = document.getElementById('fbzxInput');
-                  if (fbzxInput) fbzxInput.value = data.fbzx;
-              }
-
-              if (data.pageMapping) {
-                  const pmInput = document.getElementById('pageMappingInput');
-                  if (pmInput) pmInput.value = typeof data.pageMapping === 'string' ? data.pageMapping : JSON.stringify(data.pageMapping);
-              }
 
               // SYNC DELAY & THREADS FROM FOOTER
               const footerDelayValue = document.getElementById('footerDelayValue');
@@ -1952,27 +1937,12 @@
                   }
               }
 
-              let currentUrls = data.urlsToSend;
-              // urlCount.textContent = currentUrls.length; // Element removed
+              let currentUrlCount = data.urlCount || 0;
 
               chartGrid.innerHTML = '';
-              // urlList.innerHTML = ''; // Element removed
               hiddenInputs.innerHTML = '';
               charts.forEach(chart => chart.destroy());
               charts = [];
-
-              currentUrls.forEach(url => {
-                 // Removed visual list population
-                /*
-                const li = document.createElement('li');
-                li.textContent = '> ' + url;
-                urlList.appendChild(li);
-                */
-
-                const input = document.createElement('input');
-                input.type = 'hidden'; input.name = 'urls[]'; input.value = url;
-                hiddenInputs.appendChild(input);
-              });
 
               // Neon Colors for Charts
               const toonColors = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
@@ -2468,19 +2438,12 @@
               btn.disabled = true;
 
               const formData = new FormData(this);
-              // Convert to JSON
-              const data = {};
-              formData.forEach((value, key) => data[key] = value);
-              // Fix array inputs manually
+              // Only send configId + config params (URLs are server-side)
               const jsonPayload = {
-                urls: Array.from(formData.getAll('urls[]')),
                 concurrency: formData.get('concurrency'),
                 delay: formData.get('delay'),
                 manualPageCount: formData.get('manualPageCount'),
-                pageHistoryStr: formData.get('pageHistoryStr'), // Pass explicit IDs
-                configId: formData.get('configId'),
-                fbzx: formData.get('fbzx'),
-                pageMapping: formData.get('pageMapping')
+                configId: formData.get('configId')
               };
 
               try {

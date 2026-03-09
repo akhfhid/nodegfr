@@ -606,7 +606,21 @@ app.post('/save-probabilities', ensureAuthenticated, express.json({ limit: '50mb
         const pageHistoryStr = req.body.pageHistoryStr || null;
         const fbzx = req.body.fbzx || null;
         const pageMapping = req.body.pageMapping || null;
-        res.json({ urlsToSend, stats, configId: config.id, pageHistoryStr, fbzx, pageMapping });
+
+        // Store URLs server-side (never expose to frontend)
+        pendingUrls.set(config.id, {
+            urls: urlsToSend,
+            pageHistoryStr,
+            fbzx,
+            pageMapping,
+            createdAt: Date.now()
+        });
+
+        // Auto-expire after 30 minutes
+        setTimeout(() => pendingUrls.delete(config.id), 30 * 60 * 1000);
+
+        // Return stats only, NOT the URLs
+        res.json({ urlCount: urlsToSend.length, stats, configId: config.id, pageHistoryStr, fbzx, pageMapping });
     } catch (error) {
         console.error("Error in /save-probabilities:", error);
         res.status(500).json({ error: "Failed to process request" });
@@ -614,41 +628,58 @@ app.post('/save-probabilities', ensureAuthenticated, express.json({ limit: '50mb
 });
 
 // --- JOB MANAGEMENT ---
-let globalJob = {
-    isRunning: false,
-    total: 0,
-    current: 0,
-    success: 0,
-    fail: 0,
-    logs: [],
-    startTime: null
-};
+// Per-user job map: userId -> job state
+const userJobs = new Map();
+
+// Server-side URL cache: configId -> { urls, pageHistoryStr, fbzx, pageMapping, createdAt }
+const pendingUrls = new Map();
+
+function getUserJob(userId) {
+    return userJobs.get(userId) || {
+        isRunning: false,
+        total: 0,
+        current: 0,
+        success: 0,
+        fail: 0,
+        logs: [],
+        startTime: null
+    };
+}
 
 app.post('/execute-links', ensureAuthenticated, express.json({ limit: '50mb' }), express.urlencoded({ extended: true, limit: '50mb' }), async (req, res) => {
-    if (globalJob.isRunning) {
-        return res.status(409).json({ error: 'A job is already running' });
+    const existingJob = getUserJob(req.user.id);
+    if (existingJob.isRunning) {
+        return res.status(409).json({ error: 'You already have a job running' });
     }
 
-    // 1. Get Params
-    let urlsVal = req.body.urls || req.body['urls[]'];
-    if (!urlsVal) return res.status(400).json({ error: 'No URLs provided' });
-
-    // Ensure array
-    const urlsToSend = Array.isArray(urlsVal) ? urlsVal : [urlsVal];
+    // 1. Get URLs from server-side cache (NOT from frontend)
     const configId = req.body.configId;
+    if (!configId) {
+        return res.status(400).json({ error: 'Missing Configuration ID. Please save probabilities first.' });
+    }
+
+    const cached = pendingUrls.get(configId);
+    if (!cached || !cached.urls || cached.urls.length === 0) {
+        return res.status(400).json({ error: 'No URLs found for this configuration. Please regenerate.' });
+    }
+
+    const urlsToSend = cached.urls;
 
     // Config
     const concurrency = parseInt(req.body.concurrency) || 5;
     const delay = parseInt(req.body.delay) || 1000;
     const manualPageCount = parseInt(req.body.manualPageCount) || 0;
-    const pageHistoryStr = req.body.pageHistoryStr || null;
-    const fbzx = req.body.fbzx || null;
+    const pageHistoryStr = cached.pageHistoryStr || req.body.pageHistoryStr || null;
+    const fbzx = cached.fbzx || req.body.fbzx || null;
     let pageMapping = null;
     try {
-        pageMapping = req.body.pageMapping ? (typeof req.body.pageMapping === 'string' ? JSON.parse(req.body.pageMapping) : req.body.pageMapping) : null;
+        pageMapping = cached.pageMapping ? (typeof cached.pageMapping === 'string' ? JSON.parse(cached.pageMapping) : cached.pageMapping) : null;
     } catch (e) {
         console.error('[EXECUTE] Failed to parse pageMapping:', e.message);
     }
+
+    // Clean up cached URLs (one-time use)
+    pendingUrls.delete(configId);
 
 
     // --- TOKEN CHECK START ---
@@ -712,10 +743,11 @@ app.post('/execute-links', ensureAuthenticated, express.json({ limit: '50mb' }),
         return res.status(400).json({ error: 'Missing Configuration ID. Please save probabilities first.' });
     }
 
-    // 3. Init Global Job (Memory) for legacy/fast status checking
-    globalJob = {
+    // 3. Init Per-User Job (Memory)
+    const userJob = {
         isRunning: true,
-        id: job.id, // Link to DB Job
+        id: job.id,
+        userId: req.user.id,
         total: urlsToSend.length,
         current: 0,
         success: 0,
@@ -723,6 +755,7 @@ app.post('/execute-links', ensureAuthenticated, express.json({ limit: '50mb' }),
         logs: [],
         startTime: Date.now()
     };
+    userJobs.set(req.user.id, userJob);
 
     // 4. Start Background Worker (Fire and Forget)
     runBackgroundJob(urlsToSend, concurrency, delay, manualPageCount, pageHistoryStr, job.id, req.user.id, fbzx, pageMapping);
@@ -732,17 +765,21 @@ app.post('/execute-links', ensureAuthenticated, express.json({ limit: '50mb' }),
 });
 
 app.get('/job-status', ensureAuthenticated, (req, res) => {
-    res.json(globalJob);
+    res.json(getUserJob(req.user.id));
 });
 
 app.post('/stop-job', ensureAuthenticated, (req, res) => {
-    if (!globalJob.isRunning) return res.json({ message: 'No job running' });
-    globalJob.isRunning = false;
+    const userJob = getUserJob(req.user.id);
+    if (!userJob.isRunning) return res.json({ message: 'No job running' });
+    userJob.isRunning = false;
     res.json({ message: 'Stop signal sent' });
 });
 
 async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, pageHistoryStr = null, jobId = null, userId = null, fbzx = null, pageMapping = null) {
     console.log(`[JOB] Starting background job: ${urls.length} items. Threads: ${concurrency}. Manual Pages: ${manualPageCount}. Page History: ${pageHistoryStr} UserID: ${userId} Has PageMapping: ${!!pageMapping}`);
+
+    // Get per-user job reference
+    const userJob = userJobs.get(userId);
 
     // Determine total page count from pageMapping or pageHistoryStr
     let totalPages = 1;
@@ -753,8 +790,8 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
     } else if (manualPageCount > 0) {
         totalPages = manualPageCount + 1;
     }
-    const isMultiPage = totalPages > 1 && pageMapping && Object.keys(pageMapping).length > 0;
-    console.log(`[JOB] Total pages: ${totalPages}, Multi-page mode: ${isMultiPage}`);
+    const isMultiPage = totalPages > 1;
+    console.log(`[JOB] Total pages: ${totalPages}, Multi-page mode: ${isMultiPage}, pageMapping keys: ${pageMapping ? Object.keys(pageMapping).length : 0}`);
 
     if (jobId) {
         await prisma.job.update({
@@ -862,7 +899,8 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
             }
 
             const formData = pageParams.toString();
-            console.log(`[MULTIPAGE] Page ${pageIdx}/${totalPages - 1}: ${currentPageEntries.length} entries, isLast=${isLastPage}`);
+            console.log(`[MULTIPAGE] Page ${pageIdx}/${totalPages - 1}: ${currentPageEntries.length} entries, isLast=${isLastPage}, dataLen=${formData.length}`);
+            console.log(`[MULTIPAGE] POST to: ${url.hostname}${url.pathname}`);
 
             lastResult = await makePostRequest(url.hostname, url.pathname, formData, userAgent);
 
@@ -951,11 +989,12 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
         }
 
         const formData = cleanParams.toString();
+        console.log(`[SINGLEPAGE] POST to: ${url.hostname}${url.pathname}, entries: ${Array.from(cleanParams.keys()).filter(k => k.startsWith('entry.')).length}, dataLen=${formData.length}`);
         return makePostRequest(url.hostname, url.pathname, formData, userAgent);
     };
 
     const worker = async (workerId) => {
-        while (currentIndex < urls.length && globalJob.isRunning) {
+        while (currentIndex < urls.length && userJob.isRunning) {
             const index = currentIndex++;
             const u = urls[index];
 
@@ -993,7 +1032,7 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
                 const { status, location } = result;
 
                 if (status == 200 || status == 201) {
-                    globalJob.success++;
+                    userJob.success++;
                     console.log(`[JOB SUCCESS] Status: ${status} | URL: ...${u.slice(-70)}`);
                 } else {
                     console.log(`[JOB] Status: ${status} | Redirect: ${location || 'None'} | URL: ...${u.slice(-50)}`);
@@ -1006,9 +1045,9 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
                         console.log(`[JOB WARNING] Redirect to: ${location}`);
 
                         // Still count as success for now, but log for investigation
-                        globalJob.success++;
+                        userJob.success++;
                     } else {
-                        globalJob.fail++;
+                        userJob.fail++;
                         // Log failure to DB
                         if (jobId) {
                             await prisma.jobLog.create({
@@ -1022,7 +1061,7 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
                     }
                 }
             } catch (err) {
-                globalJob.fail++;
+                userJob.fail++;
                 if (jobId) {
                     await prisma.jobLog.create({
                         data: {
@@ -1034,7 +1073,7 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
                 }
             }
 
-            globalJob.current++;
+            userJob.current++;
 
             if (delay > 0) await new Promise(r => setTimeout(r, delay));
         }
@@ -1046,37 +1085,37 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
     }
 
     await Promise.all(activeWorkers);
-    globalJob.isRunning = false;
-    console.log(`[JOB] Finished. Success: ${globalJob.success}, Fail: ${globalJob.fail}`);
+    userJob.isRunning = false;
+    console.log(`[JOB] Finished. Success: ${userJob.success}, Fail: ${userJob.fail}`);
 
     if (jobId) {
         await prisma.job.update({
             where: { id: jobId },
             data: {
                 status: 'COMPLETED',
-                successCount: globalJob.success,
-                failCount: globalJob.fail,
+                successCount: userJob.success,
+                failCount: userJob.fail,
                 completedAt: new Date()
             }
         });
     }
 
     // --- TOKEN REFUND LOGIC ---
-    if (globalJob.fail > 0 && userId) {
-        console.log(`[JOB REFUND] Detected ${globalJob.fail} failures. Refunding ${globalJob.fail} tokens to user ${userId}...`);
+    if (userJob.fail > 0 && userId) {
+        console.log(`[JOB REFUND] Detected ${userJob.fail} failures. Refunding ${userJob.fail} tokens to user ${userId}...`);
         try {
             await prisma.$transaction([
                 prisma.user.update({
                     where: { id: userId },
-                    data: { tokenBalance: { increment: globalJob.fail } }
+                    data: { tokenBalance: { increment: userJob.fail } }
                 }),
                 prisma.transaction.create({
                     data: {
                         id: `REFUND-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
                         userId: userId,
-                        package: 'REFUND', // Special package type for refunds
+                        package: 'REFUND',
                         amount: 0,
-                        tokens: globalJob.fail,
+                        tokens: userJob.fail,
                         status: 'SUCCESS'
                     }
                 })
@@ -1086,6 +1125,14 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
             console.error(`[JOB REFUND ERROR] Failed to refund tokens:`, err);
         }
     }
+
+    // Clean up finished job from map after a delay (keep it for 30s so frontend can see final status)
+    setTimeout(() => {
+        const job = userJobs.get(userId);
+        if (job && !job.isRunning) {
+            userJobs.delete(userId);
+        }
+    }, 30000);
 }
 
 // --- ADMIN ROUTES ---
@@ -1366,8 +1413,6 @@ async function addAdminLog(action, details, adminEmail, reason = '', targetUser 
                 details,
                 reason: reason || null,
                 targetUser: targetUser || null,
-                action: action,
-                details: details,
                 adminEmail: adminEmail
             }
         });
@@ -1822,10 +1867,12 @@ function selectIndependentOptions(optionsWithProbabilities) {
 }
 
 function selectWeightedRandomItem(optionsWithWeights) {
+    if (!optionsWithWeights || optionsWithWeights.length === 0) return null;
     let totalWeight = 0;
     for (const item of optionsWithWeights) {
         totalWeight += parseFloat(item.chance);
     }
+    if (totalWeight === 0) return optionsWithWeights[0];
     const randomNumber = Math.random() * totalWeight;
     let cumulativeWeight = 0;
 
@@ -1889,11 +1936,27 @@ async function scrape(url) {
             const getLoadData = () => {
                 const scripts = document.querySelectorAll('script');
                 for (const script of scripts) {
-                    if (script.textContent.includes('FB_PUBLIC_LOAD_DATA_')) {
-                        const match = script.textContent.match(/FB_PUBLIC_LOAD_DATA_\s*=\s*(.*?);\s*<\/script>/) ||
-                            script.textContent.match(/FB_PUBLIC_LOAD_DATA_\s*=\s*(.*);/);
-                        if (match && match[1]) {
-                            return JSON.parse(match[1]);
+                    const text = script.textContent;
+                    if (text.includes('FB_PUBLIC_LOAD_DATA_')) {
+                        try {
+                            // Method 1: Match the assignment (handles multiline with dotAll-like approach)
+                            const match = text.match(/FB_PUBLIC_LOAD_DATA_\s*=\s*([\s\S]*?)\s*;\s*$/m);
+                            if (match && match[1]) {
+                                return JSON.parse(match[1]);
+                            }
+                            // Method 2: Fallback - extract everything after the assignment operator
+                            const idx = text.indexOf('FB_PUBLIC_LOAD_DATA_');
+                            if (idx >= 0) {
+                                const eqIdx = text.indexOf('=', idx);
+                                if (eqIdx >= 0) {
+                                    let jsonStr = text.substring(eqIdx + 1).trim();
+                                    // Remove trailing semicolons
+                                    if (jsonStr.endsWith(';')) jsonStr = jsonStr.slice(0, -1).trim();
+                                    return JSON.parse(jsonStr);
+                                }
+                            }
+                        } catch (e) {
+                            console.error('[SCRAPER] JSON parse error for FB_PUBLIC_LOAD_DATA_:', e.message);
                         }
                     }
                 }
