@@ -6,6 +6,7 @@ const { Faker, id_ID } = require('@faker-js/faker');
 const path = require('path');
 const os = require('os');
 const { exec } = require('child_process');
+const { randomUUID } = require('crypto');
 
 const app = express();
 app.set('server.allowedHosts', ['autofill.site', 'www.autofill.site', 'localhost']);
@@ -166,24 +167,44 @@ const USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0"
 ];
 
+function createUniqueId(prefix) {
+    // Keep IDs compact and collision-resistant even under concurrent multi-user load.
+    return `${prefix}-${Date.now()}-${randomUUID().replace(/-/g, '').slice(0, 12)}`;
+}
+
 app.get('/scrape', ensureAuthenticated, async (req, res) => {
-    const url = req.query.url;
+    const inputUrl = (req.query.url || '').trim();
+    if (!inputUrl) {
+        return res.render('index', {
+            url: '',
+            questions: [],
+            pageCount: 0
+        });
+    }
+
+    let normalizedUrl = inputUrl;
+    try {
+        normalizedUrl = await normalizeFormUrl(inputUrl);
+    } catch (err) {
+        console.error(`[SCRAPE] Failed to normalize URL ${inputUrl}: ${err.message}`);
+    }
 
     // Check if form exists in DB first
     // TODO: optimization later. for now just scrape.
 
-    const formData = await scrape(url);
+    const formData = await scrape(normalizedUrl);
+    const canonicalUrl = formData?.resolvedUrl || normalizedUrl;
 
     if (!formData || !formData.questions) {
         return res.render('index', {
-            url,
+            url: canonicalUrl,
             questions: [],
             pageCount: 0
         });
     }
 
     res.render('index', {
-        url,
+        url: canonicalUrl,
         questions: formData.questions,
         pageCount: formData.pageCount || 0,
         pageHistoryStr: formData.pageHistoryStr || "0",
@@ -253,7 +274,7 @@ app.post('/api/purchase', ensureAuthenticated, async (req, res) => {
     }
 
     const packageId = `CUSTOM-${tokenCount}`;
-    const orderId = `ORDER-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const orderId = createUniqueId('ORDER');
 
     try {
         await prisma.transaction.create({
@@ -502,6 +523,7 @@ app.post('/save-probabilities', ensureAuthenticated, express.json({ limit: '50mb
         if (respondCount > RESPOND_COUNT_HARD_LIMIT) { respondCount = RESPOND_COUNT_HARD_LIMIT; }
 
         let baseUrl = formData.url;
+        baseUrl = await normalizeFormUrl(baseUrl);
         let data = parseData(formData);
         let nameFakerEntry, cityFakerEntry, genderFakerEntry, emailFakerEntry;
         let newData = [];
@@ -646,6 +668,27 @@ function getUserJob(userId) {
     };
 }
 
+async function refundFailedTokens(userId, tokenCount) {
+    if (!userId || !tokenCount || tokenCount <= 0) return;
+
+    await prisma.$transaction([
+        prisma.user.update({
+            where: { id: userId },
+            data: { tokenBalance: { increment: tokenCount } }
+        }),
+        prisma.transaction.create({
+            data: {
+                id: createUniqueId('REFUND'),
+                userId: userId,
+                package: 'REFUND',
+                amount: 0,
+                tokens: tokenCount,
+                status: 'SUCCESS'
+            }
+        })
+    ]);
+}
+
 app.post('/execute-links', ensureAuthenticated, express.json({ limit: '50mb' }), express.urlencoded({ extended: true, limit: '50mb' }), async (req, res) => {
     const existingJob = getUserJob(req.user.id);
     if (existingJob.isRunning) {
@@ -682,65 +725,60 @@ app.post('/execute-links', ensureAuthenticated, express.json({ limit: '50mb' }),
     pendingUrls.delete(configId);
 
 
-    // --- TOKEN CHECK START ---
+    // Deduct token + create usage transaction + create job in one DB transaction.
+    // This guarantees: if one step fails, everything is rolled back automatically.
     const cost = urlsToSend.length;
-
-    // Refresh user data to get latest balance
-    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-
-    if (!user || user.tokenBalance < cost) {
-        return res.status(402).json({ error: `Saldo tidak cukup! Butuh ${cost} tokens, Anda punya ${user ? user.tokenBalance : 0} tokens.` });
-    }
-
-    // Deduct Tokens & Log Transaction
     let updatedUser;
+    let job;
     try {
-        const results = await prisma.$transaction([
-            prisma.user.update({
-                where: { id: user.id },
+        const txResult = await prisma.$transaction(async (tx) => {
+            const freshUser = await tx.user.findUnique({
+                where: { id: req.user.id },
+                select: { id: true, tokenBalance: true }
+            });
+
+            if (!freshUser || freshUser.tokenBalance < cost) {
+                const err = new Error('INSUFFICIENT_TOKENS');
+                err.code = 'INSUFFICIENT_TOKENS';
+                err.balance = freshUser ? freshUser.tokenBalance : 0;
+                throw err;
+            }
+
+            const newUser = await tx.user.update({
+                where: { id: freshUser.id },
                 data: { tokenBalance: { decrement: cost } }
-            }),
-            prisma.transaction.create({
+            });
+
+            await tx.transaction.create({
                 data: {
-                    id: `USAGE-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                    userId: user.id,
+                    id: createUniqueId('USAGE'),
+                    userId: freshUser.id,
                     package: 'USAGE',
                     amount: 0,
                     tokens: -cost, // Negative to represent usage
                     status: 'SUCCESS'
                 }
-            })
-        ]);
-        updatedUser = results[0];
-    } catch (err) {
-        console.error("Token Deduction Failed:", err);
-        return res.status(500).json({ error: "Gagal memproses token. Job dibatalkan." });
-    }
-    // --- TOKEN CHECK END ---
+            });
 
-    // 2. Create Job in DB
-    let job;
-    if (configId) {
-        try {
-            job = await prisma.job.create({
+            const newJob = await tx.job.create({
                 data: {
                     configId: configId,
                     targetCount: urlsToSend.length,
                     status: 'PENDING'
                 }
             });
-        } catch (e) {
-            console.error("Failed to create Job in DB:", e);
-            // Fallback? If DB fails, maybe we shouldn't run.
-            return res.status(500).json({ error: 'Database Error: Could not create Job' });
+
+            return { newUser, newJob };
+        });
+
+        updatedUser = txResult.newUser;
+        job = txResult.newJob;
+    } catch (err) {
+        if (err.code === 'INSUFFICIENT_TOKENS') {
+            return res.status(402).json({ error: `Saldo tidak cukup! Butuh ${cost} tokens, Anda punya ${err.balance} tokens.` });
         }
-    } else {
-        // Handle case where no configId is present (legacy or direct API call without config? We should probably enforce it or create a trash config)
-        // For now, let's error if strictly needed, or just warn. 
-        // Schema requires configId. So we MUST have one.
-        // If missing, we can create a "Quick Run" config attached to a "Default Form"? 
-        // Or just fail. Let's fail for now to ensure integrity.
-        return res.status(400).json({ error: 'Missing Configuration ID. Please save probabilities first.' });
+        console.error("Failed to initialize job transaction:", err);
+        return res.status(500).json({ error: "Gagal memproses job. Token tidak dipotong." });
     }
 
     // 3. Init Per-User Job (Memory)
@@ -758,7 +796,10 @@ app.post('/execute-links', ensureAuthenticated, express.json({ limit: '50mb' }),
     userJobs.set(req.user.id, userJob);
 
     // 4. Start Background Worker (Fire and Forget)
-    runBackgroundJob(urlsToSend, concurrency, delay, manualPageCount, pageHistoryStr, job.id, req.user.id, fbzx, pageMapping);
+    runBackgroundJob(urlsToSend, concurrency, delay, manualPageCount, pageHistoryStr, job.id, req.user.id, fbzx, pageMapping)
+        .catch((err) => {
+            console.error('[JOB FATAL] Unhandled background error:', err);
+        });
 
     // 5. Return immediately
     res.json({ message: 'Job started', total: urlsToSend.length, jobId: job.id, newBalance: updatedUser.tokenBalance });
@@ -779,29 +820,46 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
     console.log(`[JOB] Starting background job: ${urls.length} items. Threads: ${concurrency}. Manual Pages: ${manualPageCount}. Page History: ${pageHistoryStr} UserID: ${userId} Has PageMapping: ${!!pageMapping}`);
 
     // Get per-user job reference
-    const userJob = userJobs.get(userId);
-
-    // Determine total page count from pageMapping or pageHistoryStr
-    let totalPages = 1;
-    if (pageMapping && Object.keys(pageMapping).length > 0) {
-        totalPages = Math.max(...Object.values(pageMapping)) + 1;
-    } else if (pageHistoryStr && pageHistoryStr !== '0') {
-        totalPages = pageHistoryStr.split(',').length;
-    } else if (manualPageCount > 0) {
-        totalPages = manualPageCount + 1;
-    }
-    const isMultiPage = totalPages > 1;
-    console.log(`[JOB] Total pages: ${totalPages}, Multi-page mode: ${isMultiPage}, pageMapping keys: ${pageMapping ? Object.keys(pageMapping).length : 0}`);
-
-    if (jobId) {
-        await prisma.job.update({
-            where: { id: jobId },
-            data: { status: 'RUNNING' }
-        });
+    let userJob = userJobs.get(userId);
+    if (!userJob) {
+        userJob = {
+            isRunning: true,
+            id: jobId,
+            userId: userId,
+            total: urls.length,
+            current: 0,
+            success: 0,
+            fail: 0,
+            logs: [],
+            startTime: Date.now()
+        };
+        userJobs.set(userId, userJob);
     }
 
-    let currentIndex = 0;
-    const activeWorkers = [];
+    let finalJobStatus = 'COMPLETED';
+
+    try {
+        // Determine total page count from pageMapping or pageHistoryStr
+        let totalPages = 1;
+        if (pageMapping && Object.keys(pageMapping).length > 0) {
+            totalPages = Math.max(...Object.values(pageMapping)) + 1;
+        } else if (pageHistoryStr && pageHistoryStr !== '0') {
+            totalPages = pageHistoryStr.split(',').length;
+        } else if (manualPageCount > 0) {
+            totalPages = manualPageCount + 1;
+        }
+        const isMultiPage = totalPages > 1;
+        console.log(`[JOB] Total pages: ${totalPages}, Multi-page mode: ${isMultiPage}, pageMapping keys: ${pageMapping ? Object.keys(pageMapping).length : 0}`);
+
+        if (jobId) {
+            await prisma.job.update({
+                where: { id: jobId },
+                data: { status: 'RUNNING' }
+            });
+        }
+
+        let currentIndex = 0;
+        const activeWorkers = [];
 
     // Helper: Make a single HTTP POST request
     const makePostRequest = (hostname, path, formData, userAgent) => {
@@ -1008,7 +1066,16 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
                 if (finalUrl.includes('forms.gle')) {
                     try {
                         console.log(`[JOB] Resolving forms.gle URL: ${finalUrl}`);
-                        finalUrl = await resolveRedirects(finalUrl);
+                        const shortUrl = new URL(finalUrl);
+                        const originalParams = new URLSearchParams(shortUrl.search);
+
+                        // Resolve only short link path, then re-attach generated form params.
+                        const resolvedBase = await resolveRedirects(`${shortUrl.origin}${shortUrl.pathname}`);
+                        const resolvedUrl = new URL(resolvedBase);
+                        for (const [k, v] of originalParams.entries()) {
+                            resolvedUrl.searchParams.append(k, v);
+                        }
+                        finalUrl = resolvedUrl.toString();
                         console.log(`[JOB] Resolved to: ${finalUrl}`);
                     } catch (err) {
                         console.error(`[JOB ERROR] Failed to resolve forms.gle URL: ${err.message}`);
@@ -1079,60 +1146,65 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
         }
     };
 
-    const numWorkers = Math.min(concurrency, urls.length);
-    for (let i = 0; i < numWorkers; i++) {
-        activeWorkers.push(worker(i + 1));
-    }
+        const numWorkers = Math.min(concurrency, urls.length);
+        for (let i = 0; i < numWorkers; i++) {
+            activeWorkers.push(worker(i + 1));
+        }
 
-    await Promise.all(activeWorkers);
-    userJob.isRunning = false;
-    console.log(`[JOB] Finished. Success: ${userJob.success}, Fail: ${userJob.fail}`);
+        await Promise.all(activeWorkers);
+        console.log(`[JOB] Finished. Success: ${userJob.success}, Fail: ${userJob.fail}`);
+    } catch (err) {
+        finalJobStatus = 'FAILED';
+        console.error(`[JOB FATAL] Background worker crashed:`, err);
+    } finally {
+        // If stopped/crashed before all items are processed, mark the rest as failed
+        // so deducted tokens are fully returned.
+        if (userJob.current < userJob.total) {
+            const unprocessed = userJob.total - userJob.current;
+            userJob.fail += unprocessed;
+            userJob.current = userJob.total;
+            console.log(`[JOB] Marked ${unprocessed} unprocessed items as failed for refund.`);
+        }
 
-    if (jobId) {
-        await prisma.job.update({
-            where: { id: jobId },
-            data: {
-                status: 'COMPLETED',
-                successCount: userJob.success,
-                failCount: userJob.fail,
-                completedAt: new Date()
-            }
-        });
-    }
+        userJob.isRunning = false;
 
-    // --- TOKEN REFUND LOGIC ---
-    if (userJob.fail > 0 && userId) {
-        console.log(`[JOB REFUND] Detected ${userJob.fail} failures. Refunding ${userJob.fail} tokens to user ${userId}...`);
-        try {
-            await prisma.$transaction([
-                prisma.user.update({
-                    where: { id: userId },
-                    data: { tokenBalance: { increment: userJob.fail } }
-                }),
-                prisma.transaction.create({
+        const allFailed = userJob.success === 0 && userJob.fail > 0;
+        const finalPersistedStatus = (finalJobStatus === 'FAILED' || allFailed) ? 'FAILED' : 'COMPLETED';
+
+        if (jobId) {
+            try {
+                await prisma.job.update({
+                    where: { id: jobId },
                     data: {
-                        id: `REFUND-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                        userId: userId,
-                        package: 'REFUND',
-                        amount: 0,
-                        tokens: userJob.fail,
-                        status: 'SUCCESS'
+                        status: finalPersistedStatus,
+                        successCount: userJob.success,
+                        failCount: userJob.fail,
+                        completedAt: new Date()
                     }
-                })
-            ]);
-            console.log(`[JOB REFUND] Refund successful!`);
-        } catch (err) {
-            console.error(`[JOB REFUND ERROR] Failed to refund tokens:`, err);
+                });
+            } catch (err) {
+                console.error(`[JOB DB ERROR] Failed to update final job status:`, err);
+            }
         }
-    }
 
-    // Clean up finished job from map after a delay (keep it for 30s so frontend can see final status)
-    setTimeout(() => {
-        const job = userJobs.get(userId);
-        if (job && !job.isRunning) {
-            userJobs.delete(userId);
+        if (userJob.fail > 0 && userId) {
+            console.log(`[JOB REFUND] Detected ${userJob.fail} failures. Refunding ${userJob.fail} tokens to user ${userId}...`);
+            try {
+                await refundFailedTokens(userId, userJob.fail);
+                console.log(`[JOB REFUND] Refund successful!`);
+            } catch (err) {
+                console.error(`[JOB REFUND ERROR] Failed to refund tokens:`, err);
+            }
         }
-    }, 30000);
+
+        // Clean up finished job from map after a delay (keep it for 30s so frontend can see final status)
+        setTimeout(() => {
+            const job = userJobs.get(userId);
+            if (job && !job.isRunning) {
+                userJobs.delete(userId);
+            }
+        }, 30000);
+    }
 }
 
 // --- ADMIN ROUTES ---
@@ -1573,7 +1645,7 @@ app.post('/api/admin/users/:id/tokens', ensureAdmin, async (req, res) => {
         // Create transaction record
         await prisma.transaction.create({
             data: {
-                id: `ADMIN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                id: createUniqueId('ADMIN'),
                 userId: id,
                 package: `ADMIN-${tokenCount > 0 ? 'ADD' : 'DELETE'}`,
                 amount: 0,
@@ -1682,7 +1754,21 @@ app.listen(PORT, () => {
 });
 
 function decodeToGoogleFormUrl(baseUrl, data, selections, iterationIndex = 0) {
-    baseUrl = baseUrl.replace(/viewform/, 'formResponse');
+    try {
+        const parsedBase = new URL(baseUrl);
+        parsedBase.hash = '';
+        parsedBase.search = '';
+
+        if (parsedBase.pathname.includes('/viewform')) {
+            parsedBase.pathname = parsedBase.pathname.replace('/viewform', '/formResponse');
+        } else if (!parsedBase.pathname.includes('/formResponse')) {
+            parsedBase.pathname = parsedBase.pathname.replace(/\/$/, '') + '/formResponse';
+        }
+        baseUrl = parsedBase.toString();
+    } catch (err) {
+        baseUrl = String(baseUrl || '').replace(/viewform/, 'formResponse').split('?')[0];
+    }
+
     const urlParams = new URLSearchParams();
 
     for (const entry of data) {
@@ -1783,10 +1869,7 @@ function decodeToGoogleFormUrl(baseUrl, data, selections, iterationIndex = 0) {
     console.log(`[URL BUILDER] Final Page Count: ${pages} -> pageHistory: ${pageHistory}`);
     console.log(`[URL BUILDER] Full Params: ${urlParams.toString()}`);
 
-    // FIX: Check if baseUrl already has query parameters
-    // If it has ?usp=header or other params, use & instead of ?
-    const separator = baseUrl.includes('?') ? '&' : '?';
-    return `${baseUrl}${separator}${urlParams.toString()}`;
+    return `${baseUrl}?${urlParams.toString()}`;
 }
 
 function parseData(formData) {
@@ -1916,6 +1999,8 @@ async function scrape(url) {
 
         // OPTIMIZATION: Wait for DOM only, not full network idle
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        const finalUrl = page.url();
+        console.log(`[SCRAPER] Final URL after redirects: ${finalUrl}`);
 
         page.on('console', msg => console.log('PAGE LOG:', msg.text()));
 
@@ -2102,7 +2187,8 @@ async function scrape(url) {
             pageCount: formData.pageCount,
             pageHistoryStr: formData.pageHistoryStr,
             title: formTitle,
-            fbzx: formData.fbzx
+            fbzx: formData.fbzx,
+            resolvedUrl: finalUrl
         };
     } catch (err) {
         console.error(`[SCRAPER] Error: ${err.message}`);
@@ -2112,16 +2198,47 @@ async function scrape(url) {
 }
 
 
+async function normalizeFormUrl(inputUrl) {
+    const rawUrl = String(inputUrl || '').trim();
+    if (!rawUrl) return rawUrl;
+    if (!rawUrl.includes('forms.gle')) return rawUrl;
+    return resolveRedirects(rawUrl);
+}
+
 // Helper to follow redirects (for forms.gle)
-async function resolveRedirects(url) {
-    return new Promise((resolve, reject) => {
-        const req = https.get(url, (res) => {
-            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                resolve(resolveRedirects(res.headers.location));
-            } else {
-                resolve(url);
-            }
+async function resolveRedirects(url, maxRedirects = 10) {
+    let currentUrl = url;
+    for (let i = 0; i < maxRedirects; i++) {
+        const nextLocation = await new Promise((resolve, reject) => {
+            const urlObj = new URL(currentUrl);
+            const client = urlObj.protocol === 'http:' ? http : https;
+            const req = client.request(urlObj, {
+                method: 'GET',
+                headers: {
+                    'User-Agent': USER_AGENTS[0]
+                }
+            }, (res) => {
+                const status = res.statusCode || 0;
+                const location = res.headers.location;
+                res.resume();
+
+                if (status >= 300 && status < 400 && location) {
+                    try {
+                        resolve(new URL(location, currentUrl).toString());
+                    } catch (err) {
+                        reject(err);
+                    }
+                    return;
+                }
+                resolve(null);
+            });
+            req.on('error', reject);
+            req.end();
         });
-        req.on('error', (err) => reject(err));
-    });
+
+        if (!nextLocation) return currentUrl;
+        currentUrl = nextLocation;
+    }
+
+    throw new Error(`Too many redirects while resolving URL: ${url}`);
 }

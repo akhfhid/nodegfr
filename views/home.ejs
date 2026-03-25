@@ -97,6 +97,12 @@
             transition: background-color 0.5s ease, color 0.5s ease;
         }
 
+        body.modal-open {
+            overflow: hidden;
+            height: 100vh;
+            touch-action: none;
+        }
+
         .ambient-bg {
             position: fixed;
             top: 0;
@@ -843,6 +849,51 @@
             transform: rotate(90deg);
         }
 
+        .tutorial-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .tutorial-tab-btn {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .tutorial-tab-btn.active {
+            color: var(--text-main);
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.35) inset;
+        }
+
+        .tutorial-tab-pane {
+            display: none;
+            color: var(--text-muted);
+            line-height: 1.7;
+            font-size: 0.95rem;
+        }
+
+        .tutorial-tab-pane.active {
+            display: block;
+        }
+
+        .tutorial-tab-pane ol {
+            padding-left: 20px;
+            margin: 8px 0 0 0;
+        }
+
+        .tutorial-tab-pane li {
+            margin-bottom: 8px;
+        }
+
         #loading-overlay {
             position: fixed;
             top: 0;
@@ -1344,11 +1395,51 @@
             <div class="modal-content">
                 <span class="close" onclick="closeTutorial()">&times;</span>
                 <h2 style="color: var(--primary); margin-bottom: 15px;">
-                    <i class="fa-solid fa-book-open" style="color: var(--secondary)"></i> Tutorial Cara Salin Link
+                    <i class="fa-solid fa-book-open" style="color: var(--secondary)"></i> Tutorial & Diagnosa Gagal
                 </h2>
-                <div class="tutorial-body" style="color: #ccc; line-height: 1.6;">
-                    <p>Tutorial content will be added here soon...</p>
-                    <!-- User will provide actual content later -->
+                <div class="tutorial-tabs">
+                    <button type="button" class="tutorial-tab-btn active" data-tab="tutorial" onclick="switchTutorialTab('tutorial')">Tutorial</button>
+                    <button type="button" class="tutorial-tab-btn" data-tab="gagal" onclick="switchTutorialTab('gagal')">Kenapa Gagal</button>
+                </div>
+                <div id="tutorial-tab-tutorial" class="tutorial-tab-pane active">
+                    <p><strong>Soal link:</strong> <code>forms.gle</code> itu short link (pendek), sedangkan <code>docs.google.com/forms/.../viewform</code> adalah link final/full. Sistem sekarang otomatis menormalkan short link ke link full agar lebih stabil.</p>
+                    <ol>
+                        <li>Buka Google Form, klik <code>Send/Kirim</code>, lalu copy link responden (jangan link edit).</li>
+                        <li>Paste link ke kolom URL di AutoFill, lalu scrape form.</li>
+                        <li>Pastikan pertanyaan terdeteksi semua, terutama untuk form multi-page.</li>
+                        <li>Atur <code>respondCount</code>, lalu atur probabilitas tiap pilihan sampai total 100% per pertanyaan.</li>
+                        <li>Klik generate preview, cek chart distribusi.</li>
+                        <li>Klik <code>Start Execution</code>. Untuk hasil stabil: concurrency rendah (1-3) dan delay 1000-3000 ms.</li>
+                        <li>Pantau progress <code>Success/Fail</code>. Token untuk request yang fail akan dikembalikan otomatis.</li>
+                    </ol>
+                    <p><strong>Khusus Short Answer:</strong> setiap <strong>baris</strong> dianggap sebagai <strong>satu kandidat jawaban</strong>.</p>
+                    <ol>
+                        <li>Jika kamu isi seperti ini (benar-benar per baris):
+                            <pre style="margin-top:8px; padding:10px; border-radius:8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main);">Mahasiswa
+Karyawan
+Wiraswasta</pre>
+                            maka sistem menganggap ada 3 jawaban berbeda.</li>
+                        <li>Persentase di Short Answer bekerja sebagai bobot pemilihan, mirip pilihan radio/dropdown.</li>
+                        <li>Contoh persentase real case (per baris):
+                            <pre style="margin-top:8px; padding:10px; border-radius:8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main);">Mahasiswa - 50%
+Karyawan - 30%
+Wiraswasta - 20%</pre>
+                            Dari banyak submit, distribusi akan mendekati 50:30:20 (bukan pasti persis per batch kecil).</li>
+                        <li>Kalau satu kotak jawaban berisi banyak baris tapi hanya satu slider, bobot baris dalam kotak itu dibagi rata oleh sistem.</li>
+                    </ol>
+                </div>
+                <div id="tutorial-tab-gagal" class="tutorial-tab-pane">
+                    <p>Status bisa gagal karena :</p>
+                    <ol>
+                        <li>Form dibatasi login/domain tertentu atau wajib akun Google.</li>
+                        <li>Form ditutup, kuota respon penuh, atau owner menonaktifkan menerima jawaban.</li>
+                        <li>Validasi wajib tidak terpenuhi (required, format email, batas karakter, dll).</li>
+                        <li>Struktur form berubah setelah di-scrape (owner edit pertanyaan saat job berjalan).</li>
+                        <li>Mode terlalu agresif (thread tinggi, delay kecil) kena rate limit/proteksi.</li>
+                        <li>Koneksi timeout/interupsi network saat submit.</li>
+                        <li>Multi-page branch/section lompat tidak sesuai jawaban yang dikirim.</li>
+                    </ol>
+                    <p><strong>Tips minim gagal:</strong> scrape ulang sebelum run besar, test 3-10 respon dulu, pakai delay lebih santai, dan gunakan link full <code>docs.google.com/forms/.../viewform</code>.</p>
                 </div>
             </div>
         </div>
@@ -1436,28 +1527,59 @@
                 } else {
                     document.body.classList.remove('light-theme'); localStorage.setItem('theme', 'dark');
                 }
-            } function openLogoutModal() {
-                const modal = document.getElementById('logoutModal'); if
-                    (modal) modal.style.display = 'flex';
-            } function closeLogoutModal() {
-                const
-                    modal = document.getElementById('logoutModal'); if (modal) modal.style.display = 'none';
             }
+
+            function syncModalScrollLock() {
+                const hasOpenModal = Array.from(document.querySelectorAll('.modal'))
+                    .some((m) => window.getComputedStyle(m).display !== 'none');
+                document.body.classList.toggle('modal-open', hasOpenModal);
+            }
+
+            function openModalById(id) {
+                const modal = document.getElementById(id);
+                if (!modal) return;
+                modal.style.display = 'flex';
+                syncModalScrollLock();
+            }
+
+            function closeModalById(id) {
+                const modal = document.getElementById(id);
+                if (!modal) return;
+                modal.style.display = 'none';
+                syncModalScrollLock();
+            }
+
+            function openLogoutModal() {
+                openModalById('logoutModal');
+            }
+
+            function closeLogoutModal() {
+                closeModalById('logoutModal');
+            }
+
             window.onclick = function (event) {
-                const
-                    logoutModal = document.getElementById('logoutModal'); const
-                        tutorialModal = document.getElementById('tutorialModal'); const
-                            purchaseModal = document.getElementById('purchaseModal'); if (logoutModal &&
-                                event.target === logoutModal) { logoutModal.style.display = "none"; } if (tutorialModal &&
-                                    event.target === tutorialModal) { tutorialModal.style.display = "none"; } if (purchaseModal
-                                        && event.target === purchaseModal) { purchaseModal.style.display = "none"; }
-            }; (function
-                () {
-                const savedTheme = localStorage.getItem('theme'); const
-                    checkbox = document.getElementById('theme-checkbox'); if (savedTheme === 'light') {
-                        document.body.classList.add('light-theme'); if (checkbox) checkbox.checked = true;
-                    } else { document.body.classList.remove('light-theme'); if (checkbox) checkbox.checked = false; }
-            })(); function start() {
+                const logoutModal = document.getElementById('logoutModal');
+                const tutorialModal = document.getElementById('tutorialModal');
+                const purchaseModal = document.getElementById('purchaseModal');
+
+                if (logoutModal && event.target === logoutModal) closeLogoutModal();
+                if (tutorialModal && event.target === tutorialModal) closeTutorial();
+                if (purchaseModal && event.target === purchaseModal) closePurchaseModal();
+            };
+
+            (function () {
+                const savedTheme = localStorage.getItem('theme');
+                const checkbox = document.getElementById('theme-checkbox');
+                if (savedTheme === 'light') {
+                    document.body.classList.add('light-theme');
+                    if (checkbox) checkbox.checked = true;
+                } else {
+                    document.body.classList.remove('light-theme');
+                    if (checkbox) checkbox.checked = false;
+                }
+            })();
+
+            function start() {
                 const input = document.getElementById('formurl'); const
                     status = document.getElementById('form-status'); const v = input ? input.value.trim() : '';
                 if (status) { status.innerText = ''; status.style.color = '#f87171'; } if (!v) {
@@ -1507,13 +1629,26 @@
 
             // --- TUTORIAL MODAL LOGIC ---
             function openTutorial() {
-                const modal = document.getElementById('tutorialModal');
-                if (modal) modal.style.display = 'flex';
+                switchTutorialTab('tutorial');
+                openModalById('tutorialModal');
             }
 
             function closeTutorial() {
-                const modal = document.getElementById('tutorialModal');
-                if (modal) modal.style.display = 'none';
+                closeModalById('tutorialModal');
+            }
+
+            function switchTutorialTab(tabName) {
+                const panes = document.querySelectorAll('#tutorialModal .tutorial-tab-pane');
+                const buttons = document.querySelectorAll('#tutorialModal .tutorial-tab-btn');
+
+                panes.forEach((pane) => pane.classList.remove('active'));
+                buttons.forEach((btn) => btn.classList.remove('active'));
+
+                const activePane = document.getElementById(`tutorial-tab-${tabName}`);
+                const activeBtn = document.querySelector(`#tutorialModal .tutorial-tab-btn[data-tab="${tabName}"]`);
+
+                if (activePane) activePane.classList.add('active');
+                if (activeBtn) activeBtn.classList.add('active');
             }
         </script>
         <script>
@@ -1534,15 +1669,15 @@
                     window.location.href = '/auth/google';
                     return;
             <% } %>
-            if (modalTokenInput) {
+                if (modalTokenInput) {
                     modalTokenInput.value = defaultAmount;
                     updateModalPrice();
                 }
-                if (purchaseModal) purchaseModal.style.display = 'flex';
+                openModalById('purchaseModal');
             }
 
             function closePurchaseModal() {
-                if (purchaseModal) purchaseModal.style.display = 'none';
+                closeModalById('purchaseModal');
             }
 
             let currentVoucherCode = null;
@@ -1636,11 +1771,11 @@
                     window.location.href = '/auth/google';
                     return;
                                         <% } %>
-                                        if (modalTokenInput) {
+                if (modalTokenInput) {
                     modalTokenInput.value = defaultAmount;
                     updateModalPrice();
                 }
-                if (purchaseModal) purchaseModal.style.display = 'flex';
+                openModalById('purchaseModal');
             }
 
 
