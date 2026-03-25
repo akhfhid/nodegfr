@@ -1395,7 +1395,7 @@
             <div class="modal-content">
                 <span class="close" onclick="closeTutorial()">&times;</span>
                 <h2 style="color: var(--primary); margin-bottom: 15px;">
-                    <i class="fa-solid fa-book-open" style="color: var(--secondary)"></i> Tutorial & Diagnosa Gagal
+                    <i class="fa-solid fa-book-open" style="color: var(--secondary)"></i> Tutorial
                 </h2>
                 <div class="tutorial-tabs">
                     <button type="button" class="tutorial-tab-btn active" data-tab="tutorial" onclick="switchTutorialTab('tutorial')">Tutorial</button>
@@ -1414,16 +1414,16 @@
                     </ol>
                     <p><strong>Khusus Short Answer:</strong> setiap <strong>baris</strong> dianggap sebagai <strong>satu kandidat jawaban</strong>.</p>
                     <ol>
-                        <li>Jika kamu isi seperti ini (benar-benar per baris):
-                            <pre style="margin-top:8px; padding:10px; border-radius:8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main);">Mahasiswa
-Karyawan
-Wiraswasta</pre>
+                        <li>Jika kamu isi:
+                            <code>Mahasiswa</code>,
+                            <code>Karyawan</code>,
+                            <code>Wiraswasta</code>
                             maka sistem menganggap ada 3 jawaban berbeda.</li>
                         <li>Persentase di Short Answer bekerja sebagai bobot pemilihan, mirip pilihan radio/dropdown.</li>
-                        <li>Contoh persentase real case (per baris):
-                            <pre style="margin-top:8px; padding:10px; border-radius:8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main);">Mahasiswa - 50%
-Karyawan - 30%
-Wiraswasta - 20%</pre>
+                        <li>Contoh:
+                            <code>Mahasiswa 50%</code>,
+                            <code>Karyawan 30%</code>,
+                            <code>Wiraswasta 20%</code>.
                             Dari banyak submit, distribusi akan mendekati 50:30:20 (bukan pasti persis per batch kecil).</li>
                         <li>Kalau satu kotak jawaban berisi banyak baris tapi hanya satu slider, bobot baris dalam kotak itu dibagi rata oleh sistem.</li>
                     </ol>
