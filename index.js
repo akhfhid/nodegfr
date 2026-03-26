@@ -12,6 +12,23 @@ const app = express();
 app.set('server.allowedHosts', ['autofill.site', 'www.autofill.site', 'localhost']);
 app.set('trust proxy', 1); // Trust first proxy (Cloudflare)
 const PORT = process.env.PORT || 9997;
+const HTTP_REQUEST_TIMEOUT_MS = parseInt(process.env.HTTP_REQUEST_TIMEOUT_MS || '20000', 10);
+const JOB_PROGRESS_LOG_EVERY = parseInt(process.env.JOB_PROGRESS_LOG_EVERY || '25', 10);
+const ENABLE_VERBOSE_JOB_LOGS = process.env.ENABLE_VERBOSE_JOB_LOGS === 'true';
+const ENABLE_VERBOSE_SCRAPER_LOGS = process.env.ENABLE_VERBOSE_SCRAPER_LOGS === 'true';
+const ENABLE_PAGE_CONSOLE_LOGS = process.env.ENABLE_PAGE_CONSOLE_LOGS === 'true';
+
+const HTTPS_KEEPALIVE_AGENT = new https.Agent({
+    keepAlive: true,
+    maxSockets: 100,
+    keepAliveMsecs: 1000,
+    timeout: HTTP_REQUEST_TIMEOUT_MS
+});
+let browserInstance = null;
+
+function safeLog(...args) {
+    if (ENABLE_VERBOSE_JOB_LOGS) console.log(...args);
+}
 
 // Init Prisma
 const { PrismaClient } = require('@prisma/client');
@@ -709,8 +726,10 @@ app.post('/execute-links', ensureAuthenticated, express.json({ limit: '50mb' }),
     const urlsToSend = cached.urls;
 
     // Config
-    const concurrency = parseInt(req.body.concurrency) || 5;
-    const delay = parseInt(req.body.delay) || 1000;
+    const requestedConcurrency = parseInt(req.body.concurrency) || 5;
+    const concurrency = Math.min(Math.max(requestedConcurrency, 1), 30);
+    const requestedDelay = parseInt(req.body.delay) || 1000;
+    const delay = Math.min(Math.max(requestedDelay, 0), 60000);
     const manualPageCount = parseInt(req.body.manualPageCount) || 0;
     const pageHistoryStr = cached.pageHistoryStr || req.body.pageHistoryStr || null;
     const fbzx = cached.fbzx || req.body.fbzx || null;
@@ -860,32 +879,50 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
 
         let currentIndex = 0;
         const activeWorkers = [];
+        const statusFailureCounts = new Map();
+
+        const logFailureStatus = (status, detail = '') => {
+            const current = (statusFailureCounts.get(status) || 0) + 1;
+            statusFailureCounts.set(status, current);
+            if (current <= 3 || current % 25 === 0) {
+                console.error(`[JOB FAIL] status=${status} count=${current}${detail ? ` | ${detail}` : ''}`);
+            }
+        };
 
     // Helper: Make a single HTTP POST request
-    const makePostRequest = (hostname, path, formData, userAgent) => {
+    const makePostRequest = (hostname, path, formData, userAgent, { captureBody = false } = {}) => {
         return new Promise((resolve) => {
             const options = {
                 hostname: hostname,
                 path: path,
                 method: 'POST',
+                agent: HTTPS_KEEPALIVE_AGENT,
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                     'Content-Length': Buffer.byteLength(formData),
-                    'User-Agent': userAgent
+                    'User-Agent': userAgent,
+                    'Connection': 'keep-alive'
                 }
             };
 
             const req = https.request(options, (res) => {
                 let body = '';
-                res.on('data', (chunk) => body += chunk);
+                if (captureBody) {
+                    res.on('data', (chunk) => body += chunk);
+                } else {
+                    res.resume();
+                }
                 res.on('end', () => {
                     resolve({ success: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, body, location: res.headers.location });
                 });
             });
 
+            req.setTimeout(HTTP_REQUEST_TIMEOUT_MS, () => {
+                req.destroy(new Error(`Request timeout after ${HTTP_REQUEST_TIMEOUT_MS}ms`));
+            });
+
             req.on('error', (e) => {
-                console.error(`[JOB ERROR] Request failed: ${e.message}`);
-                resolve({ success: false, status: 'ERROR' });
+                resolve({ success: false, status: 'ERROR', error: e.message });
             });
 
             req.write(formData);
@@ -957,13 +994,13 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
             }
 
             const formData = pageParams.toString();
-            console.log(`[MULTIPAGE] Page ${pageIdx}/${totalPages - 1}: ${currentPageEntries.length} entries, isLast=${isLastPage}, dataLen=${formData.length}`);
-            console.log(`[MULTIPAGE] POST to: ${url.hostname}${url.pathname}`);
+            safeLog(`[MULTIPAGE] Page ${pageIdx}/${totalPages - 1}: ${currentPageEntries.length} entries, isLast=${isLastPage}, dataLen=${formData.length}`);
+            safeLog(`[MULTIPAGE] POST to: ${url.hostname}${url.pathname}`);
 
-            lastResult = await makePostRequest(url.hostname, url.pathname, formData, userAgent);
+            lastResult = await makePostRequest(url.hostname, url.pathname, formData, userAgent, { captureBody: true });
 
             if (!lastResult.success) {
-                console.error(`[MULTIPAGE] Page ${pageIdx} failed with status ${lastResult.status}`);
+                logFailureStatus(lastResult.status, `page=${pageIdx} ${lastResult.error ? `err=${lastResult.error}` : ''}`.trim());
                 return lastResult;
             }
 
@@ -973,7 +1010,7 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
             if (fbzxMatch && fbzxMatch[1]) {
                 const newFbzx = fbzxMatch[1];
                 if (newFbzx !== fbzx) {
-                    console.log(`[MULTIPAGE] Updated fbzx: ${fbzx} -> ${newFbzx}`);
+                    safeLog(`[MULTIPAGE] Updated fbzx: ${fbzx} -> ${newFbzx}`);
                     fbzx = newFbzx;
                 }
             }
@@ -1047,7 +1084,7 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
         }
 
         const formData = cleanParams.toString();
-        console.log(`[SINGLEPAGE] POST to: ${url.hostname}${url.pathname}, entries: ${Array.from(cleanParams.keys()).filter(k => k.startsWith('entry.')).length}, dataLen=${formData.length}`);
+        safeLog(`[SINGLEPAGE] POST to: ${url.hostname}${url.pathname}, entries: ${Array.from(cleanParams.keys()).filter(k => k.startsWith('entry.')).length}, dataLen=${formData.length}`);
         return makePostRequest(url.hostname, url.pathname, formData, userAgent);
     };
 
@@ -1065,7 +1102,7 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
                 // RESOLVE REDIRECTS (Support forms.gle)
                 if (finalUrl.includes('forms.gle')) {
                     try {
-                        console.log(`[JOB] Resolving forms.gle URL: ${finalUrl}`);
+                        safeLog(`[JOB] Resolving forms.gle URL: ${finalUrl}`);
                         const shortUrl = new URL(finalUrl);
                         const originalParams = new URLSearchParams(shortUrl.search);
 
@@ -1076,7 +1113,7 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
                             resolvedUrl.searchParams.append(k, v);
                         }
                         finalUrl = resolvedUrl.toString();
-                        console.log(`[JOB] Resolved to: ${finalUrl}`);
+                        safeLog(`[JOB] Resolved to: ${finalUrl}`);
                     } catch (err) {
                         console.error(`[JOB ERROR] Failed to resolve forms.gle URL: ${err.message}`);
                     }
@@ -1100,21 +1137,15 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
 
                 if (status == 200 || status == 201) {
                     userJob.success++;
-                    console.log(`[JOB SUCCESS] Status: ${status} | URL: ...${u.slice(-70)}`);
                 } else {
-                    console.log(`[JOB] Status: ${status} | Redirect: ${location || 'None'} | URL: ...${u.slice(-50)}`);
                     // Check if it's a redirect (common in Google Forms)
                     if (status >= 300 && status < 400) {
-                        // For Google Forms, successful submissions often get 200 directly
-                        // If we get a redirect, it might be an error or validation issue
-                        // Log it as potential issue
-                        console.log(`[JOB WARNING] Redirect detected - might indicate validation error!`);
-                        console.log(`[JOB WARNING] Redirect to: ${location}`);
-
                         // Still count as success for now, but log for investigation
                         userJob.success++;
+                        safeLog(`[JOB WARNING] Redirect success status=${status} -> ${location || 'none'}`);
                     } else {
                         userJob.fail++;
+                        logFailureStatus(status, `redirect=${location || 'none'}`);
                         // Log failure to DB
                         if (jobId) {
                             await prisma.jobLog.create({
@@ -1129,6 +1160,7 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
                 }
             } catch (err) {
                 userJob.fail++;
+                logFailureStatus('EXCEPTION', err.message);
                 if (jobId) {
                     await prisma.jobLog.create({
                         data: {
@@ -1141,6 +1173,9 @@ async function runBackgroundJob(urls, concurrency, delay, manualPageCount = 0, p
             }
 
             userJob.current++;
+            if (userJob.current === userJob.total || userJob.current % JOB_PROGRESS_LOG_EVERY === 0) {
+                console.log(`[JOB PROGRESS] ${userJob.current}/${userJob.total} | success=${userJob.success} fail=${userJob.fail}`);
+            }
 
             if (delay > 0) await new Promise(r => setTimeout(r, delay));
         }
@@ -1749,9 +1784,44 @@ app.get('/api/admin/logs', ensureAdmin, async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`Example app listening on port ${PORT}`);
 });
+
+let isShuttingDown = false;
+async function gracefulShutdown(signal) {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    console.log(`[SHUTDOWN] Received ${signal}. Closing server...`);
+
+    const forceExitTimer = setTimeout(() => {
+        console.error('[SHUTDOWN] Force exit after timeout.');
+        process.exit(1);
+    }, 10000);
+    forceExitTimer.unref();
+
+    server.close(async () => {
+        try {
+            if (browserInstance && browserInstance.isConnected()) {
+                await browserInstance.close();
+            }
+        } catch (err) {
+            console.error(`[SHUTDOWN] Browser close error: ${err.message}`);
+        }
+
+        try {
+            await prisma.$disconnect();
+        } catch (err) {
+            console.error(`[SHUTDOWN] Prisma disconnect error: ${err.message}`);
+        }
+
+        clearTimeout(forceExitTimer);
+        process.exit(0);
+    });
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 function decodeToGoogleFormUrl(baseUrl, data, selections, iterationIndex = 0) {
     try {
@@ -1968,13 +2038,18 @@ function selectWeightedRandomItem(optionsWithWeights) {
     return optionsWithWeights[optionsWithWeights.length - 1];
 }
 
-let browserInstance = null;
-
 async function getBrowser() {
+    if (browserInstance && !browserInstance.isConnected()) {
+        browserInstance = null;
+    }
+
     if (!browserInstance) {
         browserInstance = await puppeteer.launch({
             headless: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+        browserInstance.on('disconnected', () => {
+            browserInstance = null;
         });
     }
     return browserInstance;
@@ -2002,14 +2077,20 @@ async function scrape(url) {
         const finalUrl = page.url();
         console.log(`[SCRAPER] Final URL after redirects: ${finalUrl}`);
 
-        page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+        if (ENABLE_PAGE_CONSOLE_LOGS) {
+            page.on('console', msg => {
+                const text = msg.text();
+                if (!text.includes('net::ERR_FAILED')) {
+                    console.log('PAGE LOG:', text);
+                }
+            });
+        }
 
         const pageTitle = await page.title();
-        console.log(`[SCRAPER] Page Title: ${pageTitle}`);
+        safeLog(`[SCRAPER] Page Title: ${pageTitle}`);
 
         if (pageTitle.toLowerCase().includes('sign in') || pageTitle.toLowerCase().includes('login')) {
             console.error('[SCRAPER] Login required or restricted form.');
-            await page.close();
             return { error: 'Login required', questions: [] };
         }
         const formTitle = await page.evaluate(() => {
@@ -2065,7 +2146,9 @@ async function scrape(url) {
                 const typeId = field[3];
                 const inputData = field[4];
 
-                console.log(`[SCRAPER RAW] Type: ${typeId}, Label: ${label ? label.substring(0, 20) : 'N/A'}`);
+                if (ENABLE_VERBOSE_SCRAPER_LOGS) {
+                    console.log(`[SCRAPER RAW] Type: ${typeId}, Label: ${label ? label.substring(0, 20) : 'N/A'}`);
+                }
 
                 if (!inputData && typeId !== 8) {
                     return;
@@ -2073,7 +2156,9 @@ async function scrape(url) {
 
                 // TYPE 8 = Section Header / Page Break logic first
                 if (typeId === 8) {
-                    console.log(`[SCRAPER RAW] Type 8 Found!`);
+                    if (ENABLE_VERBOSE_SCRAPER_LOGS) {
+                        console.log(`[SCRAPER RAW] Type 8 Found!`);
+                    }
                     try {
                         const pageId = field[0];
                         if (pageId) {
@@ -2173,13 +2258,12 @@ async function scrape(url) {
 
         if (formData.error) {
             console.error(`[SCRAPER] Error extracting data: ${formData.error}`);
-            await page.close();
             return { error: formData.error, questions: [], pageCount: 0, pageHistoryStr: "0" };
         }
 
         const validData = formData.questions.filter(q => q);
-        console.log(`[SCRAPER] Found ${validData.length} valid questions.`);
-        if (formData.fbzx) console.log(`[SCRAPER] Found fbzx token: ${formData.fbzx}`);
+        safeLog(`[SCRAPER] Found ${validData.length} valid questions.`);
+        if (formData.fbzx) safeLog(`[SCRAPER] Found fbzx token: ${formData.fbzx}`);
 
         // Include formTitle in the return object
         return {
@@ -2192,8 +2276,15 @@ async function scrape(url) {
         };
     } catch (err) {
         console.error(`[SCRAPER] Error: ${err.message}`);
-        if (page) await page.close();
         return { error: err.message, questions: [] };
+    } finally {
+        if (page && !page.isClosed()) {
+            try {
+                await page.close();
+            } catch (closeErr) {
+                safeLog(`[SCRAPER] Failed to close page cleanly: ${closeErr.message}`);
+            }
+        }
     }
 }
 

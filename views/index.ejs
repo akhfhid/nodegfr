@@ -1679,7 +1679,7 @@
                   <li>Klik <code>Start Execution</code>. Untuk hasil stabil: concurrency rendah (1-3) dan delay 1000-3000 ms.</li>
                   <li>Pantau progress <code>Success/Fail</code>. Token untuk request yang fail akan dikembalikan otomatis.</li>
                 </ol>
-                <p><strong>Khusus Short Answer:</strong> setiap <strong>baris</strong> dianggap sebagai <strong>satu kandidat jawaban</strong>.</p>
+                <p><strong>Format baris ini bukan cuma untuk Short Answer:</strong> pada kolom jawaban/opsi di generator, setiap <strong>baris</strong> dianggap sebagai <strong>satu kandidat jawaban</strong>.</p>
                 <ol>
                   <li>Jika kamu isi seperti ini (benar-benar per baris):
                     <pre style="margin-top:8px; padding:10px; border-radius:8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main);">Mahasiswa
@@ -1698,6 +1698,7 @@ Wiraswasta - 20%</pre>
               <div id="tutorial-tab-gagal" class="tutorial-tab-pane">
                 <p>Status bisa gagal karena :</p>
                 <ol>
+                  <li>Setelan Form tidak cocok untuk autofill massal. Yang paling penting: <strong>Kumpulkan alamat email</strong> harus <strong>Jangan kumpulkan</strong>. Jika aktif, request sering gagal/tertahan validasi.</li>
                   <li>Form dibatasi login/domain tertentu atau wajib akun Google.</li>
                   <li>Form ditutup, kuota respon penuh, atau owner menonaktifkan menerima jawaban.</li>
                   <li>Validasi wajib tidak terpenuhi (required, format email, batas karakter, dll).</li>
@@ -1705,8 +1706,10 @@ Wiraswasta - 20%</pre>
                   <li>Mode terlalu agresif (thread tinggi, delay kecil) kena rate limit/proteksi.</li>
                   <li>Koneksi timeout/interupsi network saat submit.</li>
                   <li>Multi-page branch/section lompat tidak sesuai jawaban yang dikirim.</li>
+                  <li>Setelan lain yang sering bentrok: <strong>Perlu login</strong> aktif dan <strong>Batasi ke 1 jawaban</strong> aktif.</li>
                 </ol>
-                <p><strong>Tips minim gagal:</strong> scrape ulang sebelum run besar, test 3-10 respon dulu, pakai delay lebih santai, dan gunakan link full <code>docs.google.com/forms/.../viewform</code>.</p>
+                <p><strong>Tips minim gagal:</strong> scrape ulang sebelum run besar, test 3-10 respon dulu, pakai delay lebih santai, gunakan link full <code>docs.google.com/forms/.../viewform</code>, dan pastikan <strong>Kumpulkan alamat email = Jangan kumpulkan</strong>.</p>
+                <p><strong>Workaround profesional jika tetap butuh email:</strong> pisahkan alur jadi 2 form. Form A untuk autofill jawaban utama (tanpa collect email). Form B khusus pengumpulan email. Ini menjaga stabilitas submit utama sambil tetap dapat data email.</p>
               </div>
             </div>
           </div>
